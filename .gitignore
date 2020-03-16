@@ -1,8 +1,7 @@
-
 *
+
 !.gitignore
 !*.cpp
 !*.h
 !*.c
-!\PoseEstimator\PoseEstimator\Server.cpp
-!\PoseEstimator\PoseEstimator\Server.h
+!*/
