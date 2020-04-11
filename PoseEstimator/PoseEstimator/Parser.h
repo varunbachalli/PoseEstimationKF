@@ -8,7 +8,6 @@
 #include <fstream>
 #include "KalmanFilter.h"
 
-#include "CudaAbstraction.cuh"
 
 
 

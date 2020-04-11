@@ -126,7 +126,7 @@ def plotpoints(variables, fig, ax, m, color):
 def compute_R(variables):
     A = []
     for var in variables:
-        a = [var[0]**2,var[1]**2,var[2]**2, 2*var[0]*var[1], 2*var[1]*var[2], 2*var[2]*var[1]]
+        a = [var[0]**2,var[1]**2,var[2]**2, 2*var[0]*var[1], 2*var[1]*var[2], 2*var[2]*var[0]]
         A.append(a)
     B = np.ones(number_of_elements)
     A = np.asarray(A)

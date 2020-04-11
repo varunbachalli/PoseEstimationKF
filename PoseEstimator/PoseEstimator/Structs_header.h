@@ -17,4 +17,12 @@ struct LatestMeasurements
 	long time_stamp;
 };
 
+struct LeastSquares
+{
+	double* ATA;
+	double* ATb;
+	int numstates;
+};
+
+
 

@@ -213,15 +213,18 @@ void Server::getSensorMutex(std::mutex* m)
 //	return 0;
 //}
 
-//
+
 //int main()
 //{
-//	
-//	/*Parser p;
+//	Eigen::MatrixXd m;
+//
+//
+//
+//	Parser p;
 //	int k = 0;
 //	std::cout << "exit" << std::endl;
 //	std::cin >> k;
-//	return 0;*/
+//	return 0;
 //
 //}
 /*

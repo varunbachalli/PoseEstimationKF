@@ -6,7 +6,8 @@
 #include <mutex>
 #include <condition_variable>
 #include "Structs_header.h"
-
+#include <Eigen/Dense>
+#include "Matrix_multiplication.cuh"
 #pragma comment (lib, "ws2_32.lib")
 
 

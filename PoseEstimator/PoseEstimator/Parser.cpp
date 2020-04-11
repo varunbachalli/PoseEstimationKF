@@ -289,11 +289,6 @@ void Parser::WriteCSV(SensorReading Measurement)
 
 
 
-Parser::Parser()
-{
-	int k  = RunCudaTest();
-	std::cout << k << std::endl;
-}
 
 void Parser::run()
 {
