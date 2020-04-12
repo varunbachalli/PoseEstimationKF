@@ -7,6 +7,11 @@
 #include "Matrix_multiplication.cuh"
 #include <limits>
 
+#include <fstream>
+#include <string>
+#include <sstream>
+
+
 struct Eigen_Vec_Vals
 {
 	Eigen::Matrix3d EigenValues;
@@ -29,8 +34,7 @@ public:
 	Eigen_Vec_Vals JacobiMethod(Eigen::Matrix3d R);
 private:
 	void setUncalibratedValues();
-	bool IsZero(double a);
-	
+	bool IsDoubleZero(double a);
 	const static int total_values = 1000;
 	int num_rows = 0;
 	Eigen::Vector3d bias;

@@ -120,11 +120,14 @@ def plotpoints(variables, fig, ax, m, color):
 def compute_R(variables):
     A = []
     for var in variables:
-        a = [var[0]**2,var[1]**2,var[2]**2, 2*var[0]*var[1], 2*var[1]*var[2], 2*var[2]*var[0]]
+        a = [var[0]**2,var[1]**2,var[2]**2, 2*var[0]*var[1], 2*var[0]*var[2], 2*var[2]*var[1]]
         A.append(a)
     B = np.ones(number_of_elements)
     A = np.asarray(A)
-    [a,b,c,d,e,f] = np.dot(np.linalg.pinv(A),B)
+    ATA = np.dot(A.transpose(),A)
+    ATb = np.dot(A.transpose(),B)
+    #[a,b,c,d,e,f] = np.dot(np.linalg.pinv(A),B)
+    [a,b,c,d,e,f] = np.linalg.solve(ATA,ATb)
     R = np.asarray([[a,d,e],[d,b,f],[e,f,c]])
     return R
 
@@ -151,7 +154,31 @@ def checkOrthogonal(A):
     a = k <= eps 
     b = k>= -1*eps
     return a.any() or b.any()
-    
+
+
+import csv
+def WriteIntoCSV(variables):
+    with open('data.csv','w',newline='') as file:
+        writer = csv.writer(file)
+        for i in range(variables.shape[0]):
+            row = []
+            for j in range(variables.shape[1]):
+                row.append(variables[i][j])
+            writer.writerow(row)
+
+def readCSV():
+    variables = []
+    with open('data.csv','r',newline='') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            element = []
+            for value in row:
+                element.append(float(value))
+            variables.append(element)
+    return variables
+
+        
+        
 
 if __name__ == "__main__":
 
@@ -163,34 +190,53 @@ if __name__ == "__main__":
     error = 0.0
     noise_amplitude = 0.0
     number_of_elements = 1000
-    rotation_in_angles = np.asarray([30,45,0])*np.pi/180 #XZX rotiations 
-    variables = generate_data_polar([5,3,5],[2,3,5],noise_amplitude,rotation_in_angles,number_of_elements)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    marker = 'o'
-    color = 'g'
+    rotation_in_angles = np.asarray([30,45,20])*np.pi/180 #XZX rotiations 
+    # variables = generate_data_polar([5,3,5],[2,3,5],noise_amplitude,rotation_in_angles,number_of_elements)
+    
+    # WriteIntoCSV(variables)
+    variables = readCSV()
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # marker = 'o'
+    # color = 'g'
 
-    #plotpoints(variables,fig,ax,marker,color)
+    # #plotpoints(variables,fig,ax,marker,color)
+
+    print("variables before")
+    print(variables[0])
 
     bias = np.asarray(computeBias(variables,number_of_elements))
     variables = variables - bias
-    error += abs(np.asarray([2,3,5]) - bias)
+    print("bias ")
+    print(bias)
+    print("variables after")
+    print(variables[0])
+
+    # error += abs(np.asarray([2,3,5]) - bias)
     R = compute_R(variables)
     eigvals , eigvector = eigvalues_and_vector(R)
+
+    print("R is \n",R)
+    print("Eigen Values \n", eigvals)
+    print("Eigen vectors \n", eigvector)
+
     
     
-    print("matrix\n",R)
-    print("eigenvalues\n",eigvals)
-    print("eigvector\n",eigvector)
+    # print("matrix\n",R)
+    # print("eigenvalues\n",eigvals)
+    # print("eigvector\n",eigvector)
 
     W = np.dot(np.dot(eigvector,np.sqrt(eigvals)),np.transpose(eigvector))
+    
 
-    transformed_variables  = []
-    for var in variables:
-        transformed_variables.append(np.dot(W,var))
+    print("bias \n",bias)
+    print("W \n",W)
+    # transformed_variables  = []
+    # for var in variables:
+    #     transformed_variables.append(np.dot(W,var))
 
-    marker = 'x'
-    color = 'r'
+    # marker = 'x'
+    # color = 'r'
 
     # plotpoints(transformed_variables,fig,ax,marker,color)
     # plt.show()

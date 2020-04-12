@@ -135,8 +135,8 @@ LeastSquares MatrixTransposeMultiplication(double* A, int numstates, int numsamp
 		cudaStreamSynchronize(cudaStreams[i]);
 	}
 	
-	std::cout << "above is c Printed " << std::endl;
-	printValues((double*)C, nStreams, numstates);
+	/*std::cout << "above is c Printed " << std::endl;
+	printValues((double*)C, nStreams, numstates);*/
 
 	
 
