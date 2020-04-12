@@ -54,12 +54,6 @@ def largestOffDiagonalElement(A):
                 k = i
                 l = j
     return k,l
-
-def check_rotation(theta):
-    eps = 10**-4
-    if(np.cos(theta)<= 1 + eps):
-        return True
-
 def eigvalues_and_vector(A): # only diagonal matrices
     D = A
     S = np.eye(A.shape[0])
@@ -169,7 +163,7 @@ if __name__ == "__main__":
     error = 0.0
     noise_amplitude = 0.0
     number_of_elements = 1000
-    rotation_in_angles = np.asarray([0,0,0])*np.pi/180 #XZX rotiations 
+    rotation_in_angles = np.asarray([30,45,0])*np.pi/180 #XZX rotiations 
     variables = generate_data_polar([5,3,5],[2,3,5],noise_amplitude,rotation_in_angles,number_of_elements)
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -183,6 +177,12 @@ if __name__ == "__main__":
     error += abs(np.asarray([2,3,5]) - bias)
     R = compute_R(variables)
     eigvals , eigvector = eigvalues_and_vector(R)
+    
+    
+    print("matrix\n",R)
+    print("eigenvalues\n",eigvals)
+    print("eigvector\n",eigvector)
+
     W = np.dot(np.dot(eigvector,np.sqrt(eigvals)),np.transpose(eigvector))
 
     transformed_variables  = []
@@ -192,8 +192,16 @@ if __name__ == "__main__":
     marker = 'x'
     color = 'r'
 
-    plotpoints(transformed_variables,fig,ax,marker,color)
-    plt.show()
+    # plotpoints(transformed_variables,fig,ax,marker,color)
+    # plt.show()
+
+
+    # matrix = np.random.rand(3,3)
+    # eigvals, eigvector = eigvalues_and_vector(matrix)
+
+
+
+
 
     
     # if(checkOrthogonal(eigvector) == False):

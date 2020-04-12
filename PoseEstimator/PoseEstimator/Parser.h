@@ -8,10 +8,6 @@
 #include <fstream>
 #include "KalmanFilter.h"
 
-
-
-
-
 class Parser
 {
 public: 

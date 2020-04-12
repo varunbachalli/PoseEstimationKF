@@ -200,81 +200,81 @@ double* getA()
 }
 
 
-
-int main()
-{
-	double* A_ = getA();
-	int numberofDataPoints = 1000;
-	int numberofStates = 6;
-
-	//double A_[] = { 5, 7, 9, 9, 9, 0, 3, 5, 5, 7,
-	//				2, 7, 7, 2, 8, 4, 7, 0, 5, 0,
-	//				8, 4, 2, 3, 3, 9, 0, 5, 1, 6,
-	//				8, 2, 3, 2, 0, 7, 8, 8, 3, 8,
-	//				5, 5, 8, 9, 2, 4, 8, 3, 5, 5,
-	//				0, 4, 7, 4, 3, 5, 4, 8, 6, 3 };
-
-
-
-
-	LeastSquares Solution;
-
-	/*
-	Solution.ATA = Eigen::Map<Eigen::MatrixXd>(A_, numberofDataPoints, numberofStates);
-	Solution.ATb = Eigen::Map<Eigen::VectorXd>(A_, numberofDataPoints* numberofStates);
-	std::cout << "first" << std::endl;
-	std::cout << Solution.ATA << std::endl;
-	std::cout << "second" << std::endl;
-	std::cout << Solution.ATb << std::endl;
-	*/
-
-
-	/*printf("original matrix is");
-	printValues((double*)A_, numberofStates, numberofDataPoints);*/
-	auto start = std::chrono::high_resolution_clock::now();
-	Solution = MatrixTransposeMultiplication((double*)A_, numberofStates, numberofDataPoints);
-	std::cout << "Solution.ATA is" << std::endl;
-	printValues(Solution.ATA, numberofStates, numberofStates);
-
-	std::cout << "b is " << std::endl;
-	std::cout << "[";
-	for (int i = 0; i < numberofStates; ++i)
-	{
-		std::cout << Solution.ATb[i] << "\t";
-	}
-	std::cout << "]\n";
-
-	free(Solution.ATA);
-	free(Solution.ATb);
-	free(A_);
-
-	auto stop = std::chrono::high_resolution_clock::now();
-
-	auto duration = std::chrono::duration_cast <std::chrono::milliseconds> (stop - start);
-	std::cout << "time taken is " << duration.count() << std::endl;
-	getch();
-
-	return 0;
-
-	//double Answer[] = { 425 ,258 ,212 ,234 ,330, 257,
-	//					258 ,260 ,129 ,154 ,232, 187,
-	//					212 ,129 ,245 ,238 ,195, 160,
-	//					234 ,154 ,238 ,331 ,263, 210,
-	//					330 ,232 ,195 ,263 ,338, 239,
-	//					257 ,187 ,160 ,210 ,239, 240 };
-
-	//
-
-	//std::cout << "answer is supposed to be" << std::endl;
-	//printValues((double*)Answer, 6, 6);
-
-	//double b[] = { 59,42,41,49,54,44.0 };
-	//std::cout << "b is supposed to be " << std::endl;
-	//std::cout << "[";
-	//for (double k : b)
-	//{
-	//	std::cout << k << "\t,";
-	//}
-	//std::cout << "]\n";
-
-}
+//
+//int main()
+//{
+//	double* A_ = getA();
+//	int numberofDataPoints = 1000;
+//	int numberofStates = 6;
+//
+//	//double A_[] = { 5, 7, 9, 9, 9, 0, 3, 5, 5, 7,
+//	//				2, 7, 7, 2, 8, 4, 7, 0, 5, 0,
+//	//				8, 4, 2, 3, 3, 9, 0, 5, 1, 6,
+//	//				8, 2, 3, 2, 0, 7, 8, 8, 3, 8,
+//	//				5, 5, 8, 9, 2, 4, 8, 3, 5, 5,
+//	//				0, 4, 7, 4, 3, 5, 4, 8, 6, 3 };
+//
+//
+//
+//
+//	LeastSquares Solution;
+//
+//	/*
+//	Solution.ATA = Eigen::Map<Eigen::MatrixXd>(A_, numberofDataPoints, numberofStates);
+//	Solution.ATb = Eigen::Map<Eigen::VectorXd>(A_, numberofDataPoints* numberofStates);
+//	std::cout << "first" << std::endl;
+//	std::cout << Solution.ATA << std::endl;
+//	std::cout << "second" << std::endl;
+//	std::cout << Solution.ATb << std::endl;
+//	*/
+//
+//
+//	/*printf("original matrix is");
+//	printValues((double*)A_, numberofStates, numberofDataPoints);*/
+//	auto start = std::chrono::high_resolution_clock::now();
+//	Solution = MatrixTransposeMultiplication((double*)A_, numberofStates, numberofDataPoints);
+//	std::cout << "Solution.ATA is" << std::endl;
+//	printValues(Solution.ATA, numberofStates, numberofStates);
+//
+//	std::cout << "b is " << std::endl;
+//	std::cout << "[";
+//	for (int i = 0; i < numberofStates; ++i)
+//	{
+//		std::cout << Solution.ATb[i] << "\t";
+//	}
+//	std::cout << "]\n";
+//
+//	free(Solution.ATA);
+//	free(Solution.ATb);
+//	free(A_);
+//
+//	auto stop = std::chrono::high_resolution_clock::now();
+//
+//	auto duration = std::chrono::duration_cast <std::chrono::milliseconds> (stop - start);
+//	std::cout << "time taken is " << duration.count() << std::endl;
+//	getch();
+//
+//	return 0;
+//
+//	//double Answer[] = { 425 ,258 ,212 ,234 ,330, 257,
+//	//					258 ,260 ,129 ,154 ,232, 187,
+//	//					212 ,129 ,245 ,238 ,195, 160,
+//	//					234 ,154 ,238 ,331 ,263, 210,
+//	//					330 ,232 ,195 ,263 ,338, 239,
+//	//					257 ,187 ,160 ,210 ,239, 240 };
+//
+//	//
+//
+//	//std::cout << "answer is supposed to be" << std::endl;
+//	//printValues((double*)Answer, 6, 6);
+//
+//	//double b[] = { 59,42,41,49,54,44.0 };
+//	//std::cout << "b is supposed to be " << std::endl;
+//	//std::cout << "[";
+//	//for (double k : b)
+//	//{
+//	//	std::cout << k << "\t,";
+//	//}
+//	//std::cout << "]\n";
+//
+//}
