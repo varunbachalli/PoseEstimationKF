@@ -5,29 +5,31 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <math.h> 
+#include <conio.h>
 class KalmanFilter
 {
 public:
-	KalmanFilter(std::map<std::string, std::array<double,3>> Values);
-
+	KalmanFilter(std::map<std::string, std::array<double,3>> Values, long timestamp);
 	void SetAngularVelocity(double w_x, double w_y, double w_z, long Time);
-
 	void SetMagnetometerMeasurements(double m_x, double m_y, double m_z);
-
 	void SetAccelerometerMeasurements(double a_x, double a_y, double a_z);
-
-
-
+	Eigen::Vector4d getXk_1();
+	Eigen::Vector3d getRPY();
 private:
-	Eigen::Matrix<double, 7, 1> Xk;
-	Eigen::Matrix<double, 7, 7> Pk;
-	Eigen::Matrix<double, 7, 1> Xk_1;
-	Eigen::Matrix<double, 7, 7> Pk_1;
+	Eigen::Matrix<double, 7, 1> X_k;
+	Eigen::Matrix<double, 7, 7> P_k;
+	Eigen::Matrix<double, 4, 4> S_k;
 	Eigen::Matrix<double, 7, 7> Q_k;
-	Eigen::Matrix<double, 7, 7> R_k;
-	Eigen::Matrix<double, 7, 1> RungeKuttaEval(Eigen::Matrix<double, 7, 1> X_0, double T, Eigen::Matrix3d w); // Kalman Filter 
+	Eigen::Matrix<double, 4, 4> R_k;
+	Eigen::Matrix<double, 7, 4> K_k;
+	Eigen::Vector4d z_k;
+
+
+	Eigen::Matrix<double, 7, 1> RungeKuttaEval(Eigen::Matrix<double, 7, 1> X_0, double T, Eigen::Vector3d U0); // Kalman Filter 
 	long previousT = 0;
 	bool first_measurement_received = false;
+	Eigen::Matrix<double, 7, 7> GetJacobian(Eigen::Matrix<double, 7, 1> X_0, Eigen::Vector3d U0, long T);
 
 	void set_mag_0(std::array<double, 3> values);
 	void set_acc_0(std::array<double, 3> values);
@@ -39,14 +41,24 @@ private:
 
 	Eigen::Matrix3d ComputeTriad(Eigen::Vector3d m, Eigen::Vector3d s);
 
-	Eigen::Vector4d ConvertRotatationMatrix2Quarternion(Eigen::Matrix3d R);
+	Eigen::Vector4d RotatationMatrix2Quarternion(Eigen::Matrix3d R);
 
-	Eigen::Vector3d Mag_0;
-	Eigen::Vector3d Acc_0;
+	void Prediction(Eigen::Vector3d Gyro, long T);
+
+	void Correction();
+
+	
 	std::array<double,6> R_Sigma;
 	Eigen::Vector3d Gyro_drift_0;
 	Eigen::Vector3d Gyro_Sigma;
-	Eigen::Vector3d InitialTriad;
+	Eigen::Matrix3d InitialTriad;
+
+	Eigen::Vector3d Mag_0;
+	Eigen::Vector3d Acc_0;
+	Eigen::Vector3d Mag_1;
+	Eigen::Vector3d Acc_1;
+	/*Eigen::Vector3d Gyro_w;*/
+
 	
 };
 

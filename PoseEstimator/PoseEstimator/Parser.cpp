@@ -1,7 +1,5 @@
 #include "Parser.h"
 
-
-
 void Parser::ProcessString(std::string& str)
 {
 	phase =FindValues(str, ",")[0];
@@ -274,9 +272,6 @@ std::string Parser::FindValues(std::string& str , std::string regex)
 	return returnString;
 }
 
-
-
-
 void Parser::WriteCSV(SensorReading Measurement)
 {
 	std::call_once(flag_, [&]() {
@@ -285,10 +280,6 @@ void Parser::WriteCSV(SensorReading Measurement)
 								});
 	fout << Measurement.type << "," << Measurement.x << "," << Measurement.y << "," << Measurement.z << "," << Measurement.time_stamp << std::endl;
 }
-
-
-
-
 
 void Parser::run()
 {

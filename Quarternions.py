@@ -30,7 +30,7 @@ def equation(q_0, T, w):
     # W_3 = np.dot(W_2,W)
     # W_4 = np.dot(W_3,W)
     # q_k1 = q_0 + T*np.dot(W,q_0) + (T**2)/2.0 * np.dot(W_2,q_0) #+ (T**3)/6.0 * np.dot(W_3,q_0) + (T**4)/24.0 * np.dot(W_4,q_0)
-    k1 = np.dot(W,q_0)
+    k1 = np.dot(W, q_0)
     k2 = np.dot(W, q_0 + T/2 * k1)
     k3 = np.dot(W, q_0 + T/2 * k2)
     k4 = np.dot(W, q_0 + T* k3)

@@ -28,10 +28,6 @@ public:
 	Eigen::Vector3d CorrectValues(double x_, double y_, double z_);
 
 	
-
-	// temp public
-
-	
 private:
 	void ClearHeapValues();
 	Eigen_Vec_Vals JacobiMethod(Eigen::Matrix3d R);
