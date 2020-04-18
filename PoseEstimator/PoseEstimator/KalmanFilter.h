@@ -7,14 +7,24 @@
 #include <iostream>
 #include <math.h> 
 #include <conio.h>
+
+
+// CSV imports
+
+#include <fstream>
+#include <string>
+#include <sstream>
+
 class KalmanFilter
 {
 public:
+	KalmanFilter();
 	KalmanFilter(std::map<std::string, std::array<double,3>> Values, long timestamp);
 	void SetAngularVelocity(double w_x, double w_y, double w_z, long Time);
 	void SetMagnetometerMeasurements(double m_x, double m_y, double m_z);
 	void SetAccelerometerMeasurements(double a_x, double a_y, double a_z);
 	Eigen::Vector4d getXk_1();
+	Eigen::Vector3d getRPY_1(Eigen::Vector4d Quart);
 	Eigen::Vector3d getRPY();
 private:
 	Eigen::Matrix<double, 7, 1> X_k;
@@ -58,6 +68,10 @@ private:
 	Eigen::Vector3d Mag_1;
 	Eigen::Vector3d Acc_1;
 	/*Eigen::Vector3d Gyro_w;*/
+
+	int numberofPrints = 0;
+	int min = 100;
+	int max = 125;
 
 	
 };

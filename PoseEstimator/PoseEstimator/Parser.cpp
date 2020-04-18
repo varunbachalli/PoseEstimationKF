@@ -1,5 +1,16 @@
 #include "Parser.h"
 
+
+// #### 
+// IMPORTANT !!! 
+// ####
+
+// Magnetometer is left handed 
+// solution : multiply y reading by -1
+
+
+
+
 void Parser::ProcessString(std::string& str)
 {
 	phase =FindValues(str, ",")[0];
