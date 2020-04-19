@@ -27,19 +27,19 @@ public:
 	Eigen::Vector3d getRPY_1(Eigen::Vector4d Quart);
 	Eigen::Vector3d getRPY();
 private:
-	Eigen::Matrix<double, 7, 1> X_k;
-	Eigen::Matrix<double, 7, 7> P_k;
+	Eigen::Matrix<double, 4, 1> X_k;
+	Eigen::Matrix<double, 4, 4> P_k;
 	Eigen::Matrix<double, 4, 4> S_k;
-	Eigen::Matrix<double, 7, 7> Q_k;
+	Eigen::Matrix<double, 4, 4> Q_k;
 	Eigen::Matrix<double, 4, 4> R_k;
-	Eigen::Matrix<double, 7, 4> K_k;
+	Eigen::Matrix<double, 4, 4> K_k;
 	Eigen::Vector4d z_k;
 
 
-	Eigen::Matrix<double, 7, 1> RungeKuttaEval(Eigen::Matrix<double, 7, 1> X_0, double T, Eigen::Vector3d U0); // Kalman Filter 
+	Eigen::Vector4d RungeKuttaEval(Eigen::Matrix<double, 4, 1> X_0, double T, Eigen::Vector3d U0); // Kalman Filter 
 	long previousT = 0;
 	bool first_measurement_received = false;
-	Eigen::Matrix<double, 7, 7> GetJacobian(Eigen::Matrix<double, 7, 1> X_0, Eigen::Vector3d U0, long T);
+	Eigen::Matrix4d  GetJacobian(Eigen::Vector3d U0);
 
 	void set_mag_0(std::array<double, 3> values);
 	void set_acc_0(std::array<double, 3> values);

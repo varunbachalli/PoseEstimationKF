@@ -34,47 +34,22 @@ void KalmanFilter::set_gyro_drift_0(std::array<double, 3> gyro_drift) { Gyro_dri
 void KalmanFilter::set_gyro_drift_sig(std::array<double, 3> gyro_sig) { Gyro_Sigma << gyro_sig[0], gyro_sig[1], gyro_sig[2];}
 
 void KalmanFilter::compute_initial_params() 
-{   
-
-   /* std::cout << "initial Values are" << std::endl;
-    std::cout << "mag_0 \n" << Mag_0 << std::endl;
-    std::cout << "Acc_0 \n" << Acc_0 << std::endl;
-    std::cout << "R_Sigma \n" << std::endl;
-    for (double k : R_Sigma)
-    {
-        std::cout << k << ',';
-    }
-    std::cout << "\n";
-    std::cout << "Gyro_drift_0 \n" << Gyro_drift_0 << std::endl;
-    std::cout << "Gyro_Sigma \n" << Gyro_Sigma << std::endl;*/
-
+{  
+    X_k << 1.0, 0.0, 0.0, 0.0;
     
-
-	X_k << 1.0, 0.0, 0.0, 0.0, Gyro_drift_0(0), Gyro_drift_0(1), Gyro_drift_0(2);
-    
-	Q_k = Eigen::MatrixXd::Identity(7, 7);
-    double temp[] = { 0.01, 0.01,  0.01,  0.01, Gyro_Sigma(0), Gyro_Sigma(1), Gyro_Sigma(2) };
-    for (int i = 0; i < 7; ++i)
+	Q_k = Eigen::MatrixXd::Identity(4, 4);
+    double temp[] = { 0.01, 0.01,  0.01,  0.01 };  
+    for (int i = 0; i < 4; ++i)
     {
         Q_k(i, i) = temp[i];
     }
-
     double MaxElement =  *std::max_element(R_Sigma.begin(), R_Sigma.end());
    
     R_k = Eigen::Matrix4d::Identity(4, 4);
     R_k = R_k * MaxElement;
     InitialTriad = ComputeTriad(Mag_0, Acc_0);
-    /*std::cout << "InitialTriad\n" << InitialTriad << std::endl;*/
-    P_k = Eigen::MatrixXd::Identity(7, 7);
-
-    /*std::cout << "InitialTriad\n" << InitialTriad << std::endl;
-    std::cout << "P_k\n" << P_k << std::endl;
-    std::cout << "R_k\n" << R_k << std::endl;
-    std::cout << "Q_k\n" << Q_k << std::endl;
-    std::cout << "X_k\n" << X_k << std::endl;
-    std::string tempstring;
-    std::cout << "Initialization done \n enter any key and press enter" << std::endl;
-    std::cin >> tempstring;*/
+    P_k = Eigen::MatrixXd::Identity(4, 4);
+    P_k = 0.5 * P_k;
 }
 
 Eigen::Matrix3d KalmanFilter::ComputeTriad(Eigen::Vector3d s, Eigen::Vector3d m)
@@ -130,31 +105,32 @@ Eigen::Vector4d KalmanFilter::RotatationMatrix2Quarternion(Eigen::Matrix3d a)
 
 void KalmanFilter::Prediction(Eigen::Vector3d Gyro, long T) // Time is in Nano Seconds
 {
-    Eigen::Matrix<double, 7, 7> Jacobian = GetJacobian(X_k, Gyro, T);
+    Eigen::Matrix<double, 4, 4> Jacobian = GetJacobian(Gyro);
     P_k = Jacobian * P_k * Jacobian.transpose() + Q_k;
+    Eigen::Vector4d PrevX_k = X_k;
     X_k = RungeKuttaEval(X_k, T, Gyro);
-    Eigen::Vector4d QuartTemp;
-    QuartTemp << X_k(0), X_k(1), X_k(2), X_k(3);
-   
+    Eigen::Vector3d Change_in_angle = getRPY_1(X_k - PrevX_k);
+    /*printf("Change_in_angle is [%f,%f,%f]\n", Change_in_angle(0), Change_in_angle(1), Change_in_angle(2));*/
+    /*std::cout << "change in angle is " << Change_in_angle(2) << std::endl;*/
 
-    Eigen::Matrix<double, 4, 7> H;
-    H << 1, 0, 0, 0, 0, 0, 0,
-         0, 1, 0, 0, 0, 0, 0,
-         0, 0, 1, 0, 0, 0, 0,
-         0, 0, 0, 1, 0, 0, 0;
+    Eigen::Matrix4d H;
+    H << 1, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1, 0,
+         0, 0, 0, 1;
     S_k = H * P_k * H.transpose() + R_k;
     K_k = P_k * H.transpose() * S_k.inverse();
-   
     z_k = H * X_k;
+
     //std::cout << "Prediction Step"<< std::endl;
-    if (numberofPrints < max && numberofPrints > min)
-    {
-        /*std::cout << "\n K_k is \n" << K_k << std::endl;*/
-        printf("predicted Quarternion is [%f,%f,%f,%f]\n", z_k(0), z_k(1), z_k(2), z_k(3));
-        std::cout << "Predicted Yaw" << getRPY_1(QuartTemp)(2) << std::endl;
-        std::cout << "Predicted Bias " << std::endl;
-        printf("bias [%f, %f, %f] ", X_k(4), X_k(5), X_k(6));
-    }
+    //if (numberofPrints < max && numberofPrints > min)
+    //{
+    //    /*std::cout << "\n K_k is \n" << K_k << std::endl;*/
+    //    printf("predicted Quarternion is [%f,%f,%f,%f]\n", z_k(0), z_k(1), z_k(2), z_k(3));
+    //    std::cout << "Predicted Yaw" << getRPY_1(X_k)(2) << std::endl;
+    //    std::cout << "Predicted Bias " << std::endl;
+    //    printf("bias [%f, %f, %f] ", X_k(4), X_k(5), X_k(6));
+    //}
     //std::cout << "S_k\n" << S_k << std::endl;
     //std::cout << "K_k\n" << K_k << std::endl;
     //std::cout << "P_k\n" << P_k << std::endl;
@@ -173,23 +149,42 @@ void KalmanFilter::Correction()
     //std::cout << "Newly computed Triad is \n" << Triad_new << std::endl;
     Eigen::Matrix3d RotationMatrix = Triad_new.transpose() * InitialTriad;
     Eigen::Vector4d Quart = RotatationMatrix2Quarternion(RotationMatrix);
-    if(numberofPrints < max && numberofPrints > min)
-        printf("corrected Quarternion is [%f,%f,%f,%f]\n", Quart(0), Quart(1), Quart(2), Quart(3)); 
+    /*if(numberofPrints < max && numberofPrints > min)
+        printf("corrected Quarternion is [%f,%f,%f,%f]\n", Quart(0), Quart(1), Quart(2), Quart(3)); */
     double Error_1 = (z_k - Quart).norm();
     double Error_2 = (z_k + Quart).norm();
     Eigen::Vector4d Error_in_prediction;
-    //std::cout << "Error is " << Error_1 << std::endl;
+    //std::cout << "Error is" << Error_1 << std::endl;
+
+    if (getRPY_1(X_k)(2) < 0.0 && getRPY_1(X_k)(2) > -180.00)
+    {
+        std::cout << "These many cycles without any problem" << numberofPrints << std::endl;
+        std::cout << "predicted Yaw is " << getRPY_1(z_k) << std::endl;
+        std::cout << "Corrected Yaw is " << getRPY_1(Quart) << std::endl;
+        printf("predicted Quarternion is [%f,%f,%f,%f]\n", z_k(0), z_k(1), z_k(2), z_k(3));
+        printf("Corrected Quarternion is [%f,%f,%f,%f]\n", Quart(0), Quart(1), Quart(2), Quart(3));
+        std::cout << "Error_1" << Error_1 << std::endl;
+        std::cout << "Error_2" << Error_2 << std::endl;
+        //std::string temp;
+        //std::cin  >> temp;
+
+
+    }
     if (Error_1 > Error_2)
     {
         Error_in_prediction = z_k + Quart;
-        std::cout << "Error_1 is being used" << std::endl;
     }
         
     else
-        Error_in_prediction = z_k - Quart;
+        Error_in_prediction = Quart - z_k;
 
     X_k = X_k + K_k * (Error_in_prediction);
-    P_k = P_k - K_k * S_k * K_k.transpose();
+    Eigen::Matrix4d H;
+    H << 1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1;
+    P_k = P_k - K_k * H * P_k;
     numberofPrints++;
   /*  std::cout << "Correction Step" << std::endl;
     std::cout << "X_k\n" << X_k << std::endl;
@@ -256,37 +251,23 @@ Eigen::Vector3d KalmanFilter::getRPY()
     double siny_cosp = 2 * (q(0) * q(3) + q(1) * q(2));
     double cosy_cosp = 1 - 2 * (q(2) * q(2) + q(3) * q(3));
     angles(2) = std::atan2(siny_cosp, cosy_cosp);
-
     return angles;
 }
 
 
 
 
-Eigen::Matrix<double, 7, 7> KalmanFilter::GetJacobian(Eigen::Matrix<double, 7, 1> X_0, Eigen::Vector3d U0, long T)
+Eigen::Matrix4d KalmanFilter::GetJacobian(Eigen::Vector3d U0)
 {
-    Eigen::Matrix<double, 7, 7> Jacobian;
-    double q0, q1, q2, q3 , b1, b2, b3;
-    q0 = X_0(0, 0);
-    q1 = X_0(1, 0);
-    q2 = X_0(2, 0);
-    q3 = X_0(3, 0);
-    b1 = X_0(4, 0);
-    b2 = X_0(5, 0);
-    b3 = X_0(6, 0);
-
-
+    Eigen::Matrix4d Jacobian;
     double w1, w2, w3;
     w1 = U0(0);
     w2 = U0(1);
     w3 = U0(2);
-    Jacobian << 1,          -(w1-b1),        -(w2-b2),       -(w3-b3),       q1,     q2,     q3,
-                (w1-b1),        1 ,           (w3-b3),       -(w2-b2),      -q0,     q3,    -q2,
-                (w2-b2),    -(w3-b3),           1,            (w1-b1),      -q3,    -q0,     q1,
-                (w3-b3),     (w2-b2),        -(w1-b1),           1,          q2,    -q1,    -q0,
-                0,              0,              0,              0,            1,      0,      0,
-                0,              0,              0,              0,            0,      1,      0,
-                0,              0,              0,              0,            0,      0,      1;
+    Jacobian << 1,      -w1,   -w2,   -w3,
+                w1,      1,     w3,   -w2,
+                w2,     -w3,    1,     w1,
+                w3,      w2,   -w1,    1;        
     Jacobian = Jacobian / 2;
     return Jacobian;
 }
@@ -309,91 +290,33 @@ void KalmanFilter::SetAccelerometerMeasurements(double a_x, double a_y, double a
 }
 
 
-Eigen::Matrix<double, 7, 1> KalmanFilter::RungeKuttaEval(Eigen::Matrix<double, 7, 1> X_0, double T, Eigen::Vector3d U0) // also use previous T in Nano
+Eigen::Vector4d KalmanFilter::RungeKuttaEval(Eigen::Vector4d q0, double T, Eigen::Vector3d U0) // also use previous T in Nano
 {
 
-    double T_ = (T - previousT) * pow(10, -9);
+    double dT = (T - previousT) * pow(10, -9);
+    double w1, w2, w0;
+    w0 = U0(0);
+    w1 = U0(1);
+    w2 = U0(2);
 
-    double q0, q1, q2, q3, b1, b2, b3;
-    q0 = X_0(0, 0);
-    q1 = X_0(1, 0);
-    q2 = X_0(2, 0);
-    q3 = X_0(3, 0);
-    b1 = X_0(4, 0);
-    b2 = X_0(5, 0);
-    b3 = X_0(6, 0);
+    Eigen::Matrix4d W;
+    W <<  0.0, -w0, -w1, -w2,
+            w0, 0.0, w2, -w1,
+            w1, -w2, 0.0, w0,
+            w2, w1, -w0, 0.0;
+    W = W / 2;
 
-    double w1, w2, w3;
-    w1 = U0(0);
-    w2 = U0(1);
-    w3 = U0(2);
+    Eigen::Vector4d k1,k2,k3,k4;
+    k1 = W * q0;
+    k2 = W * (q0 + dT / 2 * k1);
+    k3 = W * (q0 + dT / 2 * k2);
+    k4 = W * (q0 + dT * k3);
+    Eigen::Vector4d q1;
+    q1 = q0 + dT / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
 
-    //std::cout << "input yaw rate is " << w3 << std::endl;
-
-    Eigen::Matrix<double, 4, 1> f_x;
-    f_x << q0 - (w1 - b1) * q1 - (w2 - b2) * q2 - (w3 - b3) * q3,
-           (w1 - b1)* q0 + q1 + (w3 - b3) * q2 - (w2 - b2) * q3,
-           (w2 - b2)* q0 - (w3 - b3) * q1 + q2 + (w1 - b1) * q3,
-           (w3 - b3)* q0 + (w2 - b2) * q1 - (w1 - b1) * q2 + q3;
-    f_x = f_x / 2;
-
-    Eigen::Matrix<double, 4, 1> k1;
-    k1 = f_x;
-    // k1 = f(tn,yn)
-    Eigen::Matrix<double, 4, 1> k2;
-    q0 = X_0(0, 0) + T_ / 2 * k1(0);
-    q1 = X_0(1, 0) + T_ / 2 * k1(1);
-    q2 = X_0(2, 0) + T_ / 2 * k1(2);
-    q3 = X_0(3, 0) + T_ / 2 * k1(3);
-    // yn = yn + h*k1/2
-    k2 << q0 - (w1 - b1) * q1 - (w2 - b2) * q2 - (w3 - b3) * q3,
-        (w1 - b1)* q0 + q1 + (w3 - b3) * q2 - (w2 - b2) * q3,
-        (w2 - b2)* q0 - (w3 - b3) * q1 + q2 + (w1 - b1) * q3,
-        (w3 - b3)* q0 + (w2 - b2) * q1 - (w1 - b1) * q2 + q3;
-    k2 = k2 / 2;
-    // k2 = f(tn,yn)
-    q0 = X_0(0, 0) +  T_ / 2 * k2(0);
-    q1 = X_0(1, 0) +  T_ / 2 * k2(1);
-    q2 = X_0(2, 0) +  T_ / 2 * k2(2);
-    q3 = X_0(3, 0) +  T_ / 2 * k2(3);
-    // yn = yn + h*k2/2
-    Eigen::Matrix<double, 4, 1> k3;
-    k3 << q0 - (w1 - b1) * q1 - (w2 - b2) * q2 - (w3 - b3) * q3,
-        (w1 - b1)* q0 + q1 + (w3 - b3) * q2 - (w2 - b2) * q3,
-        (w2 - b2)* q0 - (w3 - b3) * q1 + q2 + (w1 - b1) * q3,
-        (w3 - b3)* q0 + (w2 - b2) * q1 - (w1 - b1) * q2 + q3;
-    k3 = k3 / 2;
-    // k2 = f(tn,yn)
-    q0 = X_0(0, 0) + T_ * k3(0);
-    q1 = X_0(1, 0) + T_ * k3(1);
-    q2 = X_0(2, 0) + T_ * k3(2);
-    q3 = X_0(3, 0) + T_ * k3(3);
-    // yn = yn + h*k3
-    Eigen::Matrix<double, 4, 1> k4;
-
-    k4 << q0 - (w1 - b1) * q1 - (w2 - b2) * q2 - (w3 - b3) * q3,
-        (w1 - b1)* q0 + q1 + (w3 - b3) * q2 - (w2 - b2) * q3,
-        (w2 - b2)* q0 - (w3 - b3) * q1 + q2 + (w1 - b1) * q3,
-        (w3 - b3)* q0 + (w2 - b2) * q1 - (w1 - b1) * q2 + q3;
-    k4 = k4 / 2;
-    // k2 = f(tn,yn)
-    Eigen::Matrix<double, 4, 1> q_k1;
-    Eigen::Matrix<double, 4, 1> q_k;
-    q_k << X_0(0, 0),
-           X_0(1, 0),
-           X_0(2, 0),
-           X_0(3, 0);
-
-    q_k1 = q_k + T_ / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
-    q_k1 = q_k1 / q_k1.norm();
-    // yn+1 = yn + 1/6 * h * (k1 + 2k2 + 2k3 + k4)
-    X_0(0 ,0) = q_k1(0, 0);
-    X_0(1, 0) = q_k1(1, 0);
-    X_0(2, 0) = q_k1(2, 0);
-    X_0(3, 0) = q_k1(3, 0);
-
-    //std::cout <<"dt is = " << T_ << std::endl;
-    return X_0;
+    double Normq1 = q1.norm();
+    q1 = q1 / Normq1;
+    return q1;
 
 }
 
@@ -426,76 +349,90 @@ Reading MagCSVFile(std::ifstream* file)
 
 }
 
+void getEigenVector(Eigen::Matrix3d& mat) 
+{
+    mat = Eigen::Matrix3d::Identity();
+}
+
 int main()
 {
-    std::ifstream file;
-    file.open("D:/GITProjects/Kalman Filtering Server/PoseEstimationKF/Sensor_CSV/MagnetometerReadings.csv");
-    if (!file)
-    {
-        std::cerr << "couldn't open file" << std::endl;
-    }
-    
-    Reading acc;
-    acc.x = 0.0;
-    acc.y = 0.0;
-    acc.z = -1.0;
+    //std::ifstream file;
+    //file.open("D:/GITProjects/Kalman Filtering Server/PoseEstimationKF/Sensor_CSV/MagnetometerReadings.csv");
+    //if (!file)
+    //{
+    //    std::cerr << "couldn't open file" << std::endl;
+    //}
+    //std::ofstream writefile;
+    //writefile.open("KalmanFilter_results.txt");
+    //if (!writefile)
+    //{
+    //    std::cerr << "couldn't open writefile file" << std::endl;
+    //}
+    //Reading acc;
+    //acc.x = 0.0;
+    //acc.y = 0.0;
+    //acc.z = -1.0;
 
-    Reading Gyro;
-    Gyro.x = 0.0;
-    Gyro.y = 0.0;
-    Gyro.z = M_PI/2;
-    KalmanFilter k; 
+    //Reading Gyro;
+    //Gyro.x = 0.0;
+    //Gyro.y = 0.0;
+    //Gyro.z = M_PI/2;
+    //KalmanFilter k; 
+    //Eigen::Vector3d rpy; std::string output;
+    //for (int i = 0; i < 11999; ++i)
+    //{
+    //    
+    //    Reading m = MagCSVFile(&file);
+    //    
 
-    for (int i = 0; i < 11999; ++i)
-    {
-        
-        Reading m = MagCSVFile(&file);
-        
+    //    if (i == 0)
+    //    {
+    //        std::map<std::string, std::array<double, 3>> values;
+    //        values["mag0"] = {m.x,m.y,m.z};
+    //        values["acc0"] = {acc.x,acc.y,acc.z};
+    //        values["mag_sig"] = {0.10,0.01,0.01};
+    //        values["acc_sig"] = {0.10,0.01,0.01};
+    //        values["gyro_drift_0"] = {0.0,0.0,0.0};
+    //        values["gyro_drift_sig"] = {0.1,0.1,0.1};
+    //        k = KalmanFilter(values,m.T);
+    //    }
+    //    else
+    //    {
+    //        Gyro.T = m.T;
+    //        k.SetAngularVelocity(Gyro.x, Gyro.y, Gyro.z, Gyro.T);
+    //        k.SetMagnetometerMeasurements(m.x, m.y, m.z);
+    //        //printf("Magvalues are [%f, %f, %f]", m.x, m.y, m.z);
+    //        k.SetAccelerometerMeasurements(acc.x, acc.y, acc.z);
+    //        rpy = k.getRPY();
+    //        //printf("yaw is %f \n", rpy(2)*180/M_PI);
+    //        double yaw = rpy(2) * 180 / M_PI;
+    //        output = std::to_string(yaw);
+    //        output = output + "\n";
+    //        writefile << output;
+    //        if (i == 1974) std::cout << "1\n";
+    //        
+    //        //std::cout << "yaw" << output;
+    //        /*if (rpy(2) > M_PI / 180 * 90.0)
+    //        {
+    //            std::string tempstring;
+    //            std::cout << "Prediction done \n enter any key and press enter" << std::endl;
+    //            std::cin >> tempstring;
+    //        }*/
+    //        if (i % 1000 == 0)
+    //        {
+    //            std::cout << i << std::endl;
+    //        }
+    //    }
 
-        if (i == 0)
-        {
-            /*
-            KalmanFilter::KalmanFilter(std::map<std::string, std::array<double, 3>> Values, long timestamp)
-                {
-                	set_mag_0(Values.find("mag0")->second);
-                	set_acc_0(Values.find("acc0")->second);
-                	set_mag_sig(Values.find("mag_sig")->second);
-                	set_acc_sig(Values.find("acc_sig")->second);
-                	set_gyro_drift_0(Values.find("gyro_drift_0")->second);
-                	set_gyro_drift_sig(Values.find("gyro_drift_sig")->second);
-                	compute_initial_params();
-                    previousT = timestamp;
-                }
-            */
-            std::map<std::string, std::array<double, 3>> values;
-            values["mag0"] = {m.x,m.y,m.z};
-            values["acc0"] = {acc.x,acc.y,acc.z};
-            values["mag_sig"] = {1.0,0.01,0.01};
-            values["acc_sig"] = {1.0,0.01,0.01};
-            values["gyro_drift_0"] = {0.0,0.0,0.0};
-            values["gyro_drift_sig"] = {0.1,0.1,0.1};
-            k = KalmanFilter(values,m.T);
-        }
-        else
-        {
-            Gyro.T = m.T;
-            k.SetAngularVelocity(Gyro.x, Gyro.y, Gyro.z, Gyro.T);
-            k.SetMagnetometerMeasurements(m.x, m.y, m.z);
-            //printf("Magvalues are [%f, %f, %f]", m.x, m.y, m.z);
-            k.SetAccelerometerMeasurements(acc.x, acc.y, acc.z);
-            Eigen::Vector3d rpy = k.getRPY();
-           // printf("yaw is %f \n", rpy(2)*180/M_PI);
-            if (rpy(2) > M_PI / 180 * 15.0)
-            {
-                std::string tempstring;
-                std::cout << "Prediction done \n enter any key and press enter" << std::endl;
-                std::cin >> tempstring;
-            }
-        }
+    //}
 
-    }
+    //file.close();
+    //writefile.close();
 
-    file.close();
+    Eigen::Matrix3d a;
+    std::cout << "pre" << a << std::endl;
+    getEigenVector(a);
+    std::cout << "post" << a << std::endl;
 
     _getch();
     return 0;
