@@ -132,36 +132,10 @@ bool Server::getLoop()
 	return loop_;
 }
 
-void Server::run_2()
-{
-	
-	for (int i = 1; i < 11; ++i)
-	{
-		SensorReading Measurement;
-		Measurement.type = std::to_string(i)[0];
-		Measurement.x = i;
-		Measurement.y = i;
-		Measurement.z = i;
-		Measurement.time_stamp = i;
-		/*
-			std::unique_lock<std::mutex> locker(*Readings_mutex);
-			AddReading(Measurement);
-			locker.unlock();
-		*/
-		cv.notify_one();
-	}
-
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	setLoop(false);
-	cv.notify_one();
-}
-
-
 std::condition_variable* Server::getCV()
 {
 	return &cv;
 }
-
 
 void Server::AddReading(std::string message)
 {

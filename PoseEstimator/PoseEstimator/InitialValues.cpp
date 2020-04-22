@@ -1,5 +1,7 @@
 #include "InitialValues.h"
 
+
+InitialValues::InitialValues(){}
 InitialValues::InitialValues(int numvalues)
 {
 	x  = (double*)	malloc(sizeof(double)* numvalues);
@@ -21,9 +23,11 @@ void InitialValues::setValuesforAverage(double x_, double y_, double z_)
 
 	if (n_avg_values == n)
 	{
-		std::cout << n << " values recieved for the sensor " << sensorType << std::endl;
+		std::cout << n << " values recieved for the sensor " << sensorType << " and calibration is done" <<std::endl;
 		compute_mean_and_variance();
+		isCalibrated = true;
 	}
+
 }
 
 void InitialValues::getAverageValues(double average[3]) // when calling clear the pointer.
@@ -52,5 +56,10 @@ void InitialValues::compute_mean_and_variance()
 	var[0] = var[0]/n_avg_values;
 	var[1] = var[1]/n_avg_values;
 	var[2] = var[2]/n_avg_values;
+}
+
+bool InitialValues::sensorCalibrated()
+{
+	return isCalibrated;
 }
 

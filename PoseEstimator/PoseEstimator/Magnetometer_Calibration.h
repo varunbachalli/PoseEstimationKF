@@ -22,10 +22,10 @@ class Magnetometer_Calibration
 {
 public:
 	void setValues(double x, double y, double z);
-	Magnetometer_Calibration(char SensorType);
+	Magnetometer_Calibration();
 
-	bool SamplesToBeCollected();
-	Eigen::Vector3d CorrectValues(double x_, double y_, double z_);
+	bool MagnetometerCalibrated();
+	void CorrectValues(double& x_, double& y_, double& z_);
 
 	
 private:
@@ -44,15 +44,9 @@ private:
 	double* y = NULL;
 	double* z = NULL;
 
-	bool values_set = false;
+	bool isCalibrated = false;
 	Eigen::Matrix3d LeastSquares_calculation(double* A);
 	void setW();
 	void LargestOffDiagonal(Eigen::Matrix3d A, int a[2]);
-	
-
-	char sensorType;
-
-
-
 };
 

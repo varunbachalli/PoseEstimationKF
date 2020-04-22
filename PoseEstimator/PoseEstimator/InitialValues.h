@@ -9,13 +9,16 @@
 class InitialValues
 {
 public:
+	InitialValues();
 	InitialValues(int numvalues);
 	void setValuesforAverage(double x_, double y_, double z_);
 	void getAverageValues(double average[3]);
 	void getVariance(double variance[3]);
+	bool sensorCalibrated();
 private:
 
 	void compute_mean_and_variance();
+	bool isCalibrated = false;
 	char sensorType;
 	int n = 0;
 	int n_avg_values = 0;

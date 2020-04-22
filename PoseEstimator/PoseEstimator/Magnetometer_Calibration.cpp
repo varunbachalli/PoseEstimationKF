@@ -1,19 +1,14 @@
 #include "Magnetometer_Calibration.h"
 
 static const double pi = 3.14159265358979323846;
-Magnetometer_Calibration::Magnetometer_Calibration(char SensorType)
+
+Magnetometer_Calibration::Magnetometer_Calibration()
 {
-	sensorType = SensorType;
-	if (sensorType == '2')
-	{
 		x = (double*)malloc(sizeof(double) * total_values);
 		y = (double*)malloc(sizeof(double) * total_values);
 		z = (double*)malloc(sizeof(double) * total_values);
 		UncalibratedValues = (double*)malloc(sizeof(double) * total_values * 6);  //*(UncalibratedValues + i * col + j)
-	}
 }
-
-
 
 void Magnetometer_Calibration::setValues(double x_, double y_, double z_) // only for magnetometer
 {
@@ -24,7 +19,7 @@ void Magnetometer_Calibration::setValues(double x_, double y_, double z_) // onl
 		bias(0) = bias(0) / total_values;
 		bias(1) = bias(1) / total_values;
 		bias(2) = bias(2) / total_values;
-		values_set = true;
+		isCalibrated = true;
 		setW();
 	}
 
@@ -41,16 +36,15 @@ void Magnetometer_Calibration::setValues(double x_, double y_, double z_) // onl
 }
 
 
-Eigen::Vector3d Magnetometer_Calibration::CorrectValues(double x_, double y_, double z_)
+void Magnetometer_Calibration::CorrectValues(double& x_, double& y_, double& z_)
 {
 	Eigen::Vector3d MeasuredValue;
 	MeasuredValue << x_, y_, z_;
 	Eigen::Vector3d CorrectedValue = MeasuredValue - bias;
-	if (sensorType == '2') // only transform for Magnetometer
-	{
-		CorrectedValue = W * CorrectedValue;
-	}
-	return CorrectedValue;
+	CorrectedValue = W * CorrectedValue;
+	x_ = CorrectedValue(0);
+	y_ = CorrectedValue(1);
+	z_ = CorrectedValue(2);
 }
 
 void Magnetometer_Calibration::ClearHeapValues()
@@ -202,9 +196,9 @@ void Magnetometer_Calibration::setW()
 }
 
 
-bool Magnetometer_Calibration::SamplesToBeCollected()
+bool Magnetometer_Calibration::MagnetometerCalibrated()
 {
-	return values_set;
+	return isCalibrated;
 }
 
 
@@ -222,7 +216,7 @@ void print(double a[][6], int rows)
 
 void TestCalibration()
 {
-	Magnetometer_Calibration calib('2');
+	Magnetometer_Calibration calib;
 	std::ifstream file;
 	file.open("D:/GITProjects/Kalman Filtering Server/PoseEstimationKF/data.csv");
 	if (!file)

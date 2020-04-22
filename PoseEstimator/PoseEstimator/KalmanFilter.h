@@ -15,17 +15,24 @@
 #include <string>
 #include <sstream>
 
+
+// Noise Addition
+
+#include <stdlib.h> 
+#include<time.h> 
+
 class KalmanFilter
 {
 public:
 	KalmanFilter();
-	KalmanFilter(std::map<std::string, std::array<double,3>> Values, long timestamp);
-	void SetAngularVelocity(double w_x, double w_y, double w_z, long Time);
+	KalmanFilter(std::map<std::string, std::array<double,3>> Values, long long timestamp);
+	void SetAngularVelocity(double w_x, double w_y, double w_z, long long timestamp);
 	void SetMagnetometerMeasurements(double m_x, double m_y, double m_z);
 	void SetAccelerometerMeasurements(double a_x, double a_y, double a_z);
-	Eigen::Vector4d getXk_1();
-	Eigen::Vector3d getRPY_1(Eigen::Vector4d Quart);
-	Eigen::Vector3d getRPY();
+	void getXk_1(double* quart);
+	void getRPY_1(Eigen::Vector4d q, Eigen::Vector3d& angles);
+	void getRPY(double* angles);
+	void UpdateLatestPreviousTime(long long Time);
 private:
 	Eigen::Matrix<double, 4, 1> X_k;
 	Eigen::Matrix<double, 4, 4> P_k;
@@ -36,10 +43,10 @@ private:
 	Eigen::Vector4d z_k;
 
 
-	Eigen::Vector4d RungeKuttaEval(Eigen::Matrix<double, 4, 1> X_0, double T, Eigen::Vector3d U0); // Kalman Filter 
-	long previousT = 0;
+	void RungeKuttaEval(Eigen::Vector4d& q0, double T, Eigen::Vector3d U0); // Kalman Filter 
+	long long previousT = 0;
 	bool first_measurement_received = false;
-	Eigen::Matrix4d  GetJacobian(Eigen::Vector3d U0);
+	void GetJacobian(Eigen::Vector3d U0, Eigen::Matrix4d& Jacobian);
 
 	void set_mag_0(std::array<double, 3> values);
 	void set_acc_0(std::array<double, 3> values);
@@ -49,11 +56,11 @@ private:
 	void set_gyro_drift_sig(std::array<double, 3> values);
 	void compute_initial_params();
 
-	Eigen::Matrix3d ComputeTriad(Eigen::Vector3d m, Eigen::Vector3d s);
+	void ComputeTriad(Eigen::Vector3d s, Eigen::Vector3d m, Eigen::Matrix3d& Triad);
 
-	Eigen::Vector4d RotatationMatrix2Quarternion(Eigen::Matrix3d R);
+	void RotatationMatrix2Quarternion(Eigen::Matrix3d a, Eigen::Vector4d& Quarternion);
 
-	void Prediction(Eigen::Vector3d Gyro, long T);
+	void Prediction(Eigen::Vector3d Gyro, long long T);
 
 	void Correction();
 
@@ -67,12 +74,13 @@ private:
 	Eigen::Vector3d Acc_0;
 	Eigen::Vector3d Mag_1;
 	Eigen::Vector3d Acc_1;
-	/*Eigen::Vector3d Gyro_w;*/
+	Eigen::Vector3d Gyro_w;
 
 	int numberofPrints = 0;
 	int min = 100;
 	int max = 125;
 
+	
 	
 };
 

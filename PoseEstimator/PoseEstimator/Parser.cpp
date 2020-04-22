@@ -5,37 +5,66 @@
 // IMPORTANT !!! 
 // ####
 
-// Magnetometer is left handed 
-// solution : multiply y reading by -1
+// tasks to do .. 
+// create the opengl platform.
+// follow all function calls once
+// Run Unit Test for each Class
+// run the whole thing
 
 
+Parser::Parser()
+{
+	init_acc = InitialValues(300);
+	init_mag = InitialValues(300);
+	init_gyro = InitialValues(300);
 
+}
 
 void Parser::ProcessString(std::string& str)
 {
-	phase =FindValues(str, ",")[0];
-	SensorReading sensor;
-	sensor.type = FindValues(str, ":")[0];
-	sensor.x = std::stod(FindValues(str, ","));
-	sensor.y = std::stod(FindValues(str, ","));
-	sensor.z = std::stod(FindValues(str, ","));
-	sensor.time_stamp = std::stol(FindValues(str, "t:"));
-	std::thread csvThread(&Parser::WriteCSV, this, sensor);
-	// Kalman Filter, Calibration 
-	// join
-	
-	// phase 1, 2, 3
-
+	phase = FindValues(str, ",")[0];
+	std::array<double, 3> sensor_reading;
+	long long Time;
+	char Type;
+	Type = FindValues(str, ":")[0];
+	sensor_reading[0] = std::stod(FindValues(str, ","));
+	sensor_reading[1] = std::stod(FindValues(str, ","));
+	sensor_reading[2] = std::stod(FindValues(str, ","));
+	Time = std::stol(FindValues(str, "t:"));
+	std::thread csvThread(&Parser::WriteCSV, this, sensor_reading, Time, Type);
 	switch (phase)
 	{
 	case '1':
-		// calibrate mag
+		if (!Mag_calib.MagnetometerCalibrated())
+			WriteCalibrationMeasurement(sensor_reading);
 		break;
 	case '2':
-		// calibarte all three
+		if (valuesInitDone < 3)
+			initialMeanAndCovariance(sensor_reading, Type);
+		if (valuesInitDone == 3)
+		{
+			std::map<std::string, std::array<double, 3>> Values;
+			Values["mag0"] = avg_mag;
+			Values["acc0"] = avg_acc;
+			Values["mag_sig"] = variance_mag;
+			Values["acc_sig"] = variance_acc;
+			Values["gyro_drift_0"] = avg_gyr;
+			Values["gyro_drift_sig"] = variance_gyr;
+			kalmanFilter = KalmanFilter(Values, Time);
+			setAcc0(avg_acc, Time);
+			setMag0(avg_mag, Time);
+			valuesInitDone++;
+		}
+		if (valuesInitDone > 3)
+		{
+			setAcc0(avg_acc, Time);
+			setMag0(avg_mag, Time);
+			kalmanFilter.UpdateLatestPreviousTime(Time);
+		}
 		break;
+
 	case '3':
-		// run Kalman Filter
+		WriteKalmanFilterMeasurement(sensor_reading, Time, Type); // Change the Way the data is read.. Seems wrong now.
 		break;
 	default:
 		break;
@@ -43,228 +72,211 @@ void Parser::ProcessString(std::string& str)
 	csvThread.join();
 }
 
-
-void Parser::WriteCalibrationMeasurement(SensorReading measurement)
+void Parser::initialMeanAndCovariance(std::array<double,3> measurement, char type)
 {
-	
+	if (type == '0')
+	{
+		if (init_acc.sensorCalibrated())
+		{
+			init_acc.setValuesforAverage(measurement[0], measurement[1], measurement[2]);
+		}
+		else
+		{
+			double avg[3];
+			double variance[3];
+			init_acc.getAverageValues(avg);
+			init_acc.getVariance(variance);
+			std::copy(std::begin(avg), std::end(avg), avg_acc.begin());
+			std::copy(std::begin(variance), std::end(variance), variance_acc.begin());
+			valuesInitDone++;
+		}
+	}	// set values std::copy(std::begin(arr), std::end(arr), first.begin());
+	else if (type == '2')
+	{
+		if (init_mag.sensorCalibrated())
+		{
+			Mag_calib.CorrectValues(measurement[0], measurement[1], measurement[2]);
+			init_mag.setValuesforAverage(measurement[0], measurement[1], measurement[2]);
+		}
+		else
+		{
+			double avg[3];
+			double variance[3];
+			init_mag.getAverageValues(avg);
+			init_mag.getVariance(variance);
+			std::copy(std::begin(avg), std::end(avg), avg_mag.begin());
+			std::copy(std::begin(variance), std::end(variance), variance_mag.begin());
+			valuesInitDone++;
+		}
+
+	}
+	if (type == '1')
+	{
+		if (init_gyro.sensorCalibrated())
+		{
+			init_gyro.setValuesforAverage(measurement[0], measurement[1], measurement[2]);
+		}
+		else
+		{
+			double avg[3];
+			double variance[3];
+			init_gyro.getAverageValues(avg);
+			init_gyro.getVariance(variance);
+			std::copy(std::begin(avg), std::end(avg), avg_gyr.begin());
+			std::copy(std::begin(variance), std::end(variance), variance_gyr.begin());
+			valuesInitDone++;
+		}
+	}
 }
-void Parser::WriteKalmanFilterMeasurement(SensorReading measurement)
+
+void Parser::WriteCalibrationMeasurement(std::array<double, 3> measurement)
+{
+	Mag_calib.setValues(measurement[0], measurement[1], measurement[2]);
+}
+void Parser::WriteKalmanFilterMeasurement(std::array<double, 3> measurement, long long Time, char Type)
 {
 	/*
 	0 - Acc, 1 - gyr, 2- mag
 	*/
 
-	if ((acc_0.time_stamp == 0) || (mag_0.time_stamp == 0)) // init
+	if (gyro_is_set == false)
 	{
-		if (measurement.type == '0')
+		if (Type == '0')
 		{
-			setAcc0(measurement);
-			std::cout << "init acc0" << std::endl;
+			setAcc0(measurement, Time);
+			std::cout << "after acc0" << std::endl;
 		}
-		else if (measurement.type == '2')
+
+		else if (Type == '2')
 		{
-			setMag0(measurement);
-			std::cout << "init mag0" << std::endl;
+			setMag0(measurement, Time);
+			std::cout << "after mag0" << std::endl;
+		}
+		else
+		{
+			setGyr(measurement, Time);
+			gyro_is_set = true;
+			std::cout << "gyro set" << std::endl;
 		}
 	}
-	else // after
+
+	else
 	{
-		if (gyro_is_set == false)
+		if (Type == '0')
 		{
-			if (measurement.type == '0')
-			{
-				setAcc0(measurement);
-				std::cout << "after acc0" << std::endl;
-			}
-
-			else if (measurement.type == '2')
-			{
-				setMag0(measurement);
-				std::cout << "after mag0" << std::endl;
-			}
-			else
-			{
-				setGyr(measurement);
-				gyro_is_set = true;
-				std::cout << "gyro set" << std::endl;
-			}
+			setAcc1(measurement, Time);
+			acc_1_is_set = true;
+			std::cout << "gyro set acc1" << std::endl;
 		}
 
-		else 
+		else if (Type == '2')
 		{
-			if (measurement.type == '0')
-			{
-				setAcc1(measurement);
-				acc_1_is_set = true;
-				std::cout << "gyro set acc1" << std::endl;
-			}
-
-			else if (measurement.type == '2')
-			{
-				setMag1(measurement);
-				mag_1_is_set = true;
-				std::cout << "gyro set mag1" << std::endl;
-			}
-			else
-			{
-				setGyr(measurement);
-				if (acc_1_is_set)
-				{
-					setAcc0(acc_1);
-					std::cout << "gyro reset acc1 set acc0" << std::endl;
-				}
-
-				if (mag_1_is_set)
-				{
-					setMag0(mag_1);
-					std::cout << "gyro reset mag_1 set mag0" << std::endl;
-
-				}
-				acc_1_is_set = false;
-				mag_1_is_set = false;
-				
-
-			}
+			setMag1(measurement, Time);
+			mag_1_is_set = true;
+			std::cout << "gyro set mag1" << std::endl;
 		}
-
-		if (acc_1_is_set == true && mag_1_is_set == true)
+		else
 		{
-			gyro_is_set = false;
+			setGyr(measurement, Time);
+			if (acc_1_is_set)
+			{
+				setAcc0(acc_1,time_acc_1);
+				std::cout << "gyro reset acc1 set acc0" << std::endl;
+			}
+
+			if (mag_1_is_set)
+			{
+				setMag0(mag_1, time_mag_1);
+				std::cout << "gyro reset mag_1 set mag0" << std::endl;
+
+			}
 			acc_1_is_set = false;
 			mag_1_is_set = false;
-
-			// set data and run kalman filter
-			KalmanFilter();
-
-			setAcc0(acc_1);
-			setMag0(mag_1);
-			setGyr(SensorReading());
 		}
 	}
-}
 
-void Parser::KalmanFilter()
-{
-	
-	///*
-	//Test : 
-	//*/
-
-	std::vector<SensorReading> sensorReadings_test;
-	for (int i = 1; i <= 5; ++i)
+	if (acc_1_is_set == true && mag_1_is_set == true)
 	{
-		SensorReading test;
-		test.x = i * 10.0;
-		test.y = i * 20.0;
-		test.z = i * 30.0;
-		test.time_stamp = i * 10000;
-		sensorReadings_test.push_back(test);
+		gyro_is_set = false;
+		acc_1_is_set = false;
+		mag_1_is_set = false;
+
+		ExecuteKalmanFilter();
+		setAcc0(acc_1, time_acc_1);
+		setMag0(mag_1, time_mag_1);
+		setGyr(std::array<double,3>(), Time);
 	}
 
-	gyro = sensorReadings_test[0];
-	acc_0 = sensorReadings_test[1];
-	mag_0 = sensorReadings_test[2];   
-	acc_1 = sensorReadings_test[3];   
-	mag_1 = sensorReadings_test[4];   
+}
 
+void Parser::NormalizeValues(double* x, double* y, double* z)
+{
+	double denom = (*y) * (*y) + (*z) * (*z) + (*x) * (*x);
+	denom = sqrt(denom);
+	*x = *x / denom;*y = *y / denom;*z = *z / denom;
 
-	latestMeasurment.time_stamp = gyro.time_stamp;
-	latestMeasurment.gyro[0] = gyro.x;
-	latestMeasurment.gyro[1] = gyro.y;
-	latestMeasurment.gyro[2] = gyro.z;
-
-	double* acc = &latestMeasurment.acc[0];
-	double* mag = &latestMeasurment.mag[0];
+}
+void Parser::ExecuteKalmanFilter()
+{
+	std::array<double, 3> acc_interpolated = LinearInterpolationSensor(time_acc_0, time_acc_1, time_gyro, acc_0, acc_1);
+	std::array<double, 3> mag_interpolated = LinearInterpolationSensor(time_mag_0, time_mag_1, time_gyro, mag_0, mag_1);
+	kalmanFilter.SetAngularVelocity(gyro[0], gyro[1], gyro[2], time_gyro);
+	Mag_calib.CorrectValues(mag_interpolated[0], mag_interpolated[1], mag_interpolated[2]);
+	kalmanFilter.SetMagnetometerMeasurements(mag_interpolated[0], mag_interpolated[1], mag_interpolated[2]);
+	NormalizeValues(&acc_interpolated[0], &acc_interpolated[1], &acc_interpolated[2]);
+	kalmanFilter.SetAccelerometerMeasurements(acc_interpolated[0], acc_interpolated[1], acc_interpolated[2]);
+	double Quarternion[4];
+	double RPY[3];
+	kalmanFilter.getXk_1(Quarternion);
+	kalmanFilter.getRPY(RPY);
 	
-	//std::cout << "acc" << std::endl;
-	*acc = LinearInterpolationSensor(acc_0.time_stamp, acc_1.time_stamp, acc_0.x, acc_1.x, latestMeasurment.time_stamp);
-	//std::cout << "mag" << std::endl;
-	*mag = LinearInterpolationSensor(mag_0.time_stamp, mag_1.time_stamp, mag_0.x, mag_1.x, latestMeasurment.time_stamp);
-	++acc;
-	++mag;
-	
-	//std::cout << "acc" << std::endl;
-	*acc = LinearInterpolationSensor(acc_0.time_stamp, acc_1.time_stamp, acc_0.y, acc_1.y, latestMeasurment.time_stamp);
-	//std::cout << "mag" << std::endl;
-	*mag = LinearInterpolationSensor(mag_0.time_stamp, mag_1.time_stamp, mag_0.y, mag_1.y, latestMeasurment.time_stamp);
-	++acc;
-	++mag;
 
-	//std::cout << "acc" << std::endl;
-	*acc = LinearInterpolationSensor(acc_0.time_stamp, acc_1.time_stamp, acc_0.z, acc_1.z, latestMeasurment.time_stamp);
-	//std::cout << "mag" << std::endl;
-	*mag = LinearInterpolationSensor(mag_0.time_stamp, mag_1.time_stamp, mag_0.z, mag_1.z, latestMeasurment.time_stamp);
 
-	//std::cout << "accelerometer :";
-	// TODO:: 
-	// 1. compute Kalman Filter
-	// 2. plot on opengl
-	/*for (double d : latestMeasurment.acc)
+	/*
+
+	send quarternion to opengl plotter
+
+	*/
+}
+
+std::array<double,3> Parser::LinearInterpolationSensor(long long t1, long long t2, long long t3, std::array<double, 3> y1, std::array<double, 3> y2)
+{
+	std::array<double, 3> interpolatedValues;
+	for (int i = 0; i < 3; ++i)
 	{
-		std::cout << d << ",";
+		interpolatedValues[i]= ((y2[i] - y1[i]) / ((double)t2 - (double)t1))* ((double)t3) + y1[i];
 	}
-
-	std::cout << std::endl;
-	
-
-	std::cout << "magnetometer :";
-	for (double d : latestMeasurment.mag)
-	{
-		std::cout << d << ",";
-	}*/
-
-	
-	/*printf("Kalman filter called [acc_0, mag_0, gyr, acc_1, mag_1] = [%d, %d, %d, %d, %d]", acc_0.time_stamp, mag_0.time_stamp, gyro.time_stamp, acc_1.time_stamp, mag_1.time_stamp);*/
-	
+	return interpolatedValues;
 }
-
-double Parser::LinearInterpolationSensor(long& t1, long& t2, double& y1, double& y2, long& t3)
+void Parser::setAcc0(std::array<double,3> sensor, long long Time)
 {
-	/*printf("[t1,t2,y1,t2,t3] = [%d, %d,%f, %f, %d]", t1, t2, y1, y2, t3);
-	std::cout << std::endl;
-	printf("((y2 - y1) / ((double)t2 - (double)t1)) * ((double)t3) + y1; %f", ((y2 - y1) / ((double)t2 - (double)t1)) * ((double)t3) + y1);
-	std::cout << std::endl;*/
-	return ((y2 - y1) / ((double)t2 - (double)t1)) * ((double)t3) + y1;
-}
-void Parser::setAcc0(SensorReading sensor)
-{
-	acc_0.x = sensor.x;
-	acc_0.y = sensor.y;
-	acc_0.z = sensor.z;
-	acc_0.time_stamp = sensor.time_stamp;
+	acc_0 = sensor;
+	time_acc_0 = Time;
 }
 
-void Parser::setAcc1(SensorReading measurement)
+void Parser::setAcc1(std::array<double, 3> sensor, long long Time)
 {
-	acc_1.x = measurement.x;
-	acc_1.y = measurement.y;
-	acc_1.z = measurement.z;
-	acc_1.time_stamp = measurement.time_stamp;
+	acc_1 = sensor;
+	time_acc_1 = Time;
 }
-void Parser::setMag0(SensorReading measurement)
+void Parser::setMag0(std::array<double, 3> sensor, long long Time)
 {
-	mag_0.x = measurement.x;
-	mag_0.y = measurement.y;
-	mag_0.z = measurement.z;
-	mag_0.time_stamp = measurement.time_stamp;
+	mag_0 = sensor;
+	time_mag_0 = Time;
 }
-void Parser::setMag1(SensorReading measurement)
+void Parser::setMag1(std::array<double, 3> sensor, long long Time)
 {
-	mag_1.x = measurement.x;
-	mag_1.y = measurement.y;
-	mag_1.z = measurement.z;
-	mag_1.time_stamp = measurement.time_stamp;
+	mag_1 = sensor;
+	time_mag_1 = Time;
 }
-void Parser::setGyr(SensorReading measurement)
+void Parser::setGyr(std::array<double, 3> sensor, long long Time)
 {
-	gyro.x = measurement.x;
-	gyro.y = measurement.y;
-	gyro.z = measurement.z;
-	gyro.time_stamp = measurement.time_stamp;
+	gyro = sensor;
+	time_gyro = Time;
 }
 
 
-std::string Parser::FindValues(std::string& str , std::string regex)
+std::string Parser::FindValues(std::string& str, std::string regex)
 {
 	std::smatch m;
 	std::regex_search(str, m, std::regex(regex));
@@ -279,17 +291,17 @@ std::string Parser::FindValues(std::string& str , std::string regex)
 		returnString = m.prefix().str();
 		str = m.suffix().str();
 	}
-	
+
 	return returnString;
 }
 
-void Parser::WriteCSV(SensorReading Measurement)
+void Parser::WriteCSV(std::array<double, 3> measurement, long long time, char sensorType)
 {
 	std::call_once(flag_, [&]() {
 		fout.open(file_source, std::ios::out | std::ios::app);
-		fout << "Sensor" <<"," <<"x"<< "," << "y" << "," << "z" << "," << "time_stamp" <<std::endl; 
-								});
-	fout << Measurement.type << "," << Measurement.x << "," << Measurement.y << "," << Measurement.z << "," << Measurement.time_stamp << std::endl;
+		fout << "Sensor" << "," << "x" << "," << "y" << "," << "z" << "," << "time_stamp" << std::endl;
+		});
+	fout << sensorType << "," << measurement[0] << "," << measurement[1] << "," << measurement[2] << "," << time << std::endl;
 }
 
 void Parser::run()
@@ -298,7 +310,7 @@ void Parser::run()
 	while (true)
 	{
 		std::unique_lock<std::mutex> locker(*m1); // access mutex by reference
-		cv->wait(locker, [&]() {return !s->getSensorReadings().empty();});
+		cv->wait(locker, [&]() {return !s->getSensorReadings().empty(); });
 		std::vector<std::string> readings = s->getSensorReadings();
 		s->clearSensorReadings();
 		locker.unlock();
@@ -322,7 +334,7 @@ void Parser::run()
 		}
 	}
 	std::cout << "out of loop" << std::endl;
-	
+
 }
 
 void Parser::setMutex(std::mutex* m)
@@ -346,7 +358,4 @@ void Parser::setServer(Server* server)
 {
 	s = server;
 }
-
-
-
 

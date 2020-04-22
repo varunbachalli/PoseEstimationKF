@@ -6,7 +6,7 @@ struct SensorReading
 	double x;
 	double y;
 	double z;
-	long time_stamp;
+	long long time_stamp;
 };
 
 struct LatestMeasurements
@@ -14,7 +14,7 @@ struct LatestMeasurements
 	double gyro[3];
 	double acc[3];
 	double mag[3];
-	long time_stamp;
+	long long time_stamp;
 };
 
 struct LeastSquares
