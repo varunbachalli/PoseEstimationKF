@@ -4,9 +4,15 @@
 InitialValues::InitialValues(){}
 InitialValues::InitialValues(int numvalues)
 {
-	x  = (double*)	malloc(sizeof(double)* numvalues);
-	y  = (double*)	malloc(sizeof(double)* numvalues);
-	z  = (double*)	malloc(sizeof(double)* numvalues);
+	x = (double*)malloc(sizeof(double) * numvalues);
+	y = (double*)malloc(sizeof(double) * numvalues);
+	z = (double*)malloc(sizeof(double) * numvalues);
+	avg[0] = 0.0;
+	avg[1] = 0.0;
+	avg[2] = 0.0;
+	var[0] = 0.0;
+	var[1] = 0.0;
+	var[2] = 0.0;
 	n_avg_values = numvalues;
 }
 
@@ -23,7 +29,6 @@ void InitialValues::setValuesforAverage(double x_, double y_, double z_)
 
 	if (n_avg_values == n)
 	{
-		std::cout << n << " values recieved for the sensor " << sensorType << " and calibration is done" <<std::endl;
 		compute_mean_and_variance();
 		isCalibrated = true;
 	}
@@ -32,12 +37,12 @@ void InitialValues::setValuesforAverage(double x_, double y_, double z_)
 
 void InitialValues::getAverageValues(double average[3]) // when calling clear the pointer.
 {
-	average = avg;
+	memcpy(average, avg, sizeof(double) * 3);
 }
 
 void InitialValues::getVariance(double variance[3])
-{	
-	variance = var;
+{
+	memcpy(variance, var, sizeof(double) * 3);
 }
 
 void InitialValues::compute_mean_and_variance()
@@ -46,6 +51,12 @@ void InitialValues::compute_mean_and_variance()
 	avg[1] = avg[1] / n_avg_values;
 	avg[2] = avg[2] / n_avg_values;
 
+	/*for(int i = 0; i < n_avg_values; ++i)
+	{
+		printf("[%f,%f,%f]\n", x[i], y[i], z[i]);
+	}
+*/
+
 	for (int i = 0; i < n_avg_values; ++i)
 	{
 		var[0] += (x[i] - avg[0]) * (x[i] - avg[0]);
@@ -53,9 +64,18 @@ void InitialValues::compute_mean_and_variance()
 		var[2] += (z[i] - avg[2]) * (z[i] - avg[2]);
 	}
 	
-	var[0] = var[0]/n_avg_values;
-	var[1] = var[1]/n_avg_values;
-	var[2] = var[2]/n_avg_values;
+	
+
+	var[0] = var[0]/(double)(n_avg_values-1);
+	var[1] = var[1]/(double)(n_avg_values-1);
+	var[2] = var[2]/(double)(n_avg_values-1);
+
+	printf("variance [%f,%f,%f]\n", var[0], var[1], var[2]);
+	printf("average [%f,%f,%f]\n", avg[0], avg[1], avg[2]);
+
+	free(x);
+	free(y);
+	free(z);
 }
 
 bool InitialValues::sensorCalibrated()

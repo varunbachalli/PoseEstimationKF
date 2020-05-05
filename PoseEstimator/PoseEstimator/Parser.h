@@ -9,12 +9,15 @@
 #include "KalmanFilter.h"
 #include "Magnetometer_Calibration.h"
 #include "InitialValues.h"
-#include "KalmanFilter.h"
 #include <map>
+#include "OpenGLPlotter.h"
+
+
 class Parser
 {
 public: 
 	Parser();
+	
 	void run();
 	void setMutex(std::mutex* m);
 	void clearLatestMeasurements();
@@ -22,13 +25,13 @@ public:
 	void setServer(Server* server);
 	void WriteCalibrationMeasurement(std::array<double , 3> measurement);
 	void WriteKalmanFilterMeasurement(std::array<double, 3> measurement, long long Time, char Type);
-	
 	void ExecuteKalmanFilter();
+	static void NormalizeValues(double& x, double& y, double& z);
 private :
-
+	void CreateAndRunOpenGLPlotter();
 	std::condition_variable cond;
 	std::condition_variable* cv;
-	void NormalizeValues(double* x, double* y, double* z);
+	
 	void WriteCSV(std::array<double, 3> measurement, long long time, char sensorType);
 	char phase;
 
@@ -52,7 +55,7 @@ private :
 	std::vector<std::string> serverInput;
 	std::mutex* m1;
 	std::mutex ServerMutex;
-	void ProcessString(std::string& c);
+	void ProcessString(std::string c);
 
 	void initialMeanAndCovariance(std::array<double, 3> measurement, char sensorType);
 	
@@ -65,12 +68,14 @@ private :
 	void setGyr(std::array<double, 3> measruement, long long Time);
 	std::string FindValues(std::string& str, std::string regex);
 
+	void WriteTextFile(std::string str);
+
 	LatestMeasurements latestMeasurment;
 	Server* s;
 
 
 	//const std::string file_source = "D:\\GITProjects\\Kalman Filtering Server\\PoseEstimationKF\\Sensor_CSV\\SensorReading.csv";
-	const std::string file_source = "SensorReading.csv";
+	const std::string file_source = "SensorText.txt";
 	std::fstream fout;
 	std::once_flag flag_;
 	std::vector<std::future<void>> CSV_Futures;
@@ -88,7 +93,18 @@ private :
 
 	std::array<double, 3> avg_gyr, avg_acc, avg_mag, variance_gyr, variance_acc, variance_mag;
 
-	int valuesInitDone = 0;
+	bool Acc_initialized = false;
+	bool Mag_initialized = false;
+	bool Gyr_initialized = false;
+	bool Kalman_initialized = false;
 	long long latestSensorTime = 0;
+
+
+	int gyr_count = 0;
+	int mag_count = 0;
+	int acc_count = 0;
+	OpenGLPlotter plotter;
+
+	std::string previous_string;
 };
 

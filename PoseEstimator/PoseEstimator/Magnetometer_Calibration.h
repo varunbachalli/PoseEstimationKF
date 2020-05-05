@@ -26,18 +26,21 @@ public:
 
 	bool MagnetometerCalibrated();
 	void CorrectValues(double& x_, double& y_, double& z_);
-
+	static Eigen_Vec_Vals JacobiMethod(Eigen::Matrix3d R);
+	static bool IsDoubleZero(double a);
+	static void LargestOffDiagonal(Eigen::Matrix3d A, int a[2]);
 	
 private:
 	void ClearHeapValues();
-	Eigen_Vec_Vals JacobiMethod(Eigen::Matrix3d R);
+	
 	//Eigen::Matrix3d get_W();
 	//Eigen::Vector3d get_bias();
 	void setUncalibratedValues();
-	bool IsDoubleZero(double a);
-	const static int total_values = 1000;
+	
+	int numberOfEvaluationsJacobi = 0;
+	const static int total_values = 2000;
 	int num_rows = 0;
-	Eigen::Vector3d bias;
+	Eigen::Vector3d bias = Eigen::Vector3d::Zero();
 	Eigen::Matrix3d W;
 	double* UncalibratedValues = NULL; // *(UncalibratedValues + i * col + j)
 	double* x = NULL;
@@ -47,6 +50,6 @@ private:
 	bool isCalibrated = false;
 	Eigen::Matrix3d LeastSquares_calculation(double* A);
 	void setW();
-	void LargestOffDiagonal(Eigen::Matrix3d A, int a[2]);
+	
 };
 

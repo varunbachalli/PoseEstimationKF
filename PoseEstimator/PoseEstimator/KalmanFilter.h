@@ -21,6 +21,14 @@
 #include <stdlib.h> 
 #include<time.h> 
 
+struct CSVData
+{
+	std::array<double, 3> acc, gyr, mag;
+	long long Time;
+	std::array<double, 4> quarternion_predict, quarternion_measurement, quarternion_Gyro_pure;
+};
+
+
 class KalmanFilter
 {
 public:
@@ -43,7 +51,8 @@ private:
 	Eigen::Vector4d z_k;
 
 
-	void RungeKuttaEval(Eigen::Vector4d& q0, double T, Eigen::Vector3d U0); // Kalman Filter 
+	void RungeKuttaEval(Eigen::Vector4d& q0, long long T, Eigen::Vector3d U0); // Kalman Filter 
+	void InitCSVFile();
 	long long previousT = 0;
 	bool first_measurement_received = false;
 	void GetJacobian(Eigen::Vector3d U0, Eigen::Matrix4d& Jacobian);
@@ -80,7 +89,14 @@ private:
 	int min = 100;
 	int max = 125;
 
-	
-	
+	void WriteData2CSV();
+	std::fstream fout;
+	std::string file_name = "KalmanFilterData.txt";
+	CSVData data;
+	bool first_update = true;
+
+	Eigen::Matrix<double, 4, 1> Quarternion_Gyro_pure;
+
 };
+
 

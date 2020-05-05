@@ -13,7 +13,8 @@ return
 */
 
 static const double M_PI = 3.14159265358979323846;
-KalmanFilter::KalmanFilter(){}
+KalmanFilter::KalmanFilter(){ InitCSVFile(); }
+
 
 KalmanFilter::KalmanFilter(std::map<std::string, std::array<double, 3>> Values, long long timestamp)
 {
@@ -28,31 +29,36 @@ KalmanFilter::KalmanFilter(std::map<std::string, std::array<double, 3>> Values, 
     std::cout << "Kalman Filter initialized " << std::endl;
 }
 
-void KalmanFilter::set_mag_0(std::array<double, 3> mag) {Mag_0 << mag[0], mag[1], mag[2];}
-void KalmanFilter::set_acc_0(std::array<double, 3> acc) { Acc_0 << acc[0], acc[1], acc[2];}
-void KalmanFilter::set_mag_sig(std::array<double, 3> mag_sig) { R_Sigma[0] = mag_sig[0]; R_Sigma[1] = mag_sig[1]; R_Sigma[2] = mag_sig[2]; }
-void KalmanFilter::set_acc_sig(std::array<double, 3> acc_sig) { R_Sigma[3] = acc_sig[0]; R_Sigma[4] = acc_sig[1]; R_Sigma[5] = acc_sig[2]; }
+void KalmanFilter::set_mag_0(std::array<double, 3> mag) { Mag_0 << mag[0], mag[1], mag[2]; memcpy(&data.mag, &mag, sizeof(std::array<double, 3>)); }
+void KalmanFilter::set_acc_0(std::array<double, 3> acc) { Acc_0 << acc[0], acc[1], acc[2]; memcpy(&data.acc, &acc, sizeof(std::array<double, 3>)); }
+void KalmanFilter::set_mag_sig(std::array<double, 3> mag_sig)  { R_Sigma[0] = 10*mag_sig[0]; R_Sigma[1] = 10 * mag_sig[1]; R_Sigma[2] = 10 * mag_sig[2]; }
+void KalmanFilter::set_acc_sig(std::array<double, 3> acc_sig) { R_Sigma[3] = 10 * acc_sig[0]; R_Sigma[4] = 10 * acc_sig[1]; R_Sigma[5] = 10 * acc_sig[2]; }
 void KalmanFilter::set_gyro_drift_0(std::array<double, 3> gyro_drift) { Gyro_drift_0 << gyro_drift[0], gyro_drift[1], gyro_drift[2];}
 void KalmanFilter::set_gyro_drift_sig(std::array<double, 3> gyro_sig) { Gyro_Sigma << gyro_sig[0], gyro_sig[1], gyro_sig[2];}
 
 void KalmanFilter::compute_initial_params() 
 {  
+    Quarternion_Gyro_pure << 1.0, 0.0, 0.0, 0.0;
     X_k << 1.0, 0.0, 0.0, 0.0;
-    
 	Q_k = Eigen::MatrixXd::Identity(4, 4);
-    double temp[] = { 0.01, 0.01,  0.01,  0.01 };  
-    for (int i = 0; i < 4; ++i)
+    //double temp[] = { 0.1, 0.1,  0.1,  0.1 };  
+    /*for (int i = 0; i < 4; ++i)
     {
         Q_k(i, i) = temp[i];
-    }
+    }*/
+
     double MaxElement = *std::max_element(R_Sigma.begin(), R_Sigma.end());
    
     R_k = Eigen::Matrix4d::Identity(4, 4);
-    R_k = R_k * MaxElement;
+    R_k = R_k * 0.1;
     ComputeTriad(Mag_0, Acc_0, InitialTriad);
     //std::cout << InitialTriad << std::endl;
     P_k = Eigen::MatrixXd::Identity(4, 4);
     //P_k = 1.0 * P_k;
+
+    data.gyr = std::array<double, 3>{0.0,0.0,0.0};
+    data.quarternion_measurement = std::array<double, 4>{1.0, 0.0, 0.0,0.0};
+    data.quarternion_predict = std::array<double, 4>{1.0, 0.0, 0.0,0.0};
 }
 
 void KalmanFilter::ComputeTriad(Eigen::Vector3d s, Eigen::Vector3d m, Eigen::Matrix3d& Triad)
@@ -121,6 +127,11 @@ void KalmanFilter::Prediction(Eigen::Vector3d Gyro, long long T) // Time is in N
     Eigen::Vector4d PrevX_k = X_k;
     //std::cout << "3\n";
     RungeKuttaEval(X_k, T, Gyro);
+    RungeKuttaEval(Quarternion_Gyro_pure, T, Gyro);
+    data.quarternion_Gyro_pure[0] = Quarternion_Gyro_pure(0);
+    data.quarternion_Gyro_pure[1] = Quarternion_Gyro_pure(1);
+    data.quarternion_Gyro_pure[2] = Quarternion_Gyro_pure(2);
+    data.quarternion_Gyro_pure[3] = Quarternion_Gyro_pure(3);
     //std::cout << "4\n";
     Eigen::Vector3d Change_in_angle;
     getRPY_1(X_k - PrevX_k , Change_in_angle);
@@ -139,7 +150,10 @@ void KalmanFilter::Prediction(Eigen::Vector3d Gyro, long long T) // Time is in N
     //std::cout << "7\n";
     z_k = H * X_k;
     //std::cout << "8\n";
-
+    data.quarternion_predict[0] = z_k(0);
+    data.quarternion_predict[1] = z_k(1);
+    data.quarternion_predict[2] = z_k(2);
+    data.quarternion_predict[3] = z_k(3);
     //std::cout << "Prediction Step"<< std::endl;
     //if (numberofPrints < max && numberofPrints > min)
     //{
@@ -177,25 +191,25 @@ void KalmanFilter::Correction()
     double Error_2 = (z_k + Quart).norm();
     Eigen::Vector4d Error_in_prediction;
     //std::cout << "Error is" << Error_1 << std::endl;
-    Eigen::Vector3d RPY;
-    getRPY_1(X_k, RPY);
-    if (RPY(2) < 0.0 && RPY(2) > -180.00)
-    {
-        std::cout << "These many cycles without any problem" << numberofPrints << std::endl;
-        std::cout << "Mag input is [" << Mag_1(0) << "," << Mag_1(1) << "," << Mag_1(2) << "]" << std::endl;
-        getRPY_1(z_k, RPY);
-        std::cout << "predicted Yaw is " << RPY(2) << std::endl;
-        getRPY_1(Quart, RPY);
-        std::cout << "Corrected Yaw is " << RPY(2) << std::endl;
-        std::cout << "predicted Quarternion is [" << z_k(0) << "," << z_k(1) << "," << z_k(2) << "," << z_k(3) << "]\n";
-        std::cout << "Corrected Quarternion is [" << Quart(0) << "," << Quart(1) << "," << Quart(2) << "," << Quart(3) << "]\n";
-        std::cout << "Error_1" << Error_1 << std::endl;
-        std::cout << "Error_2" << Error_2 << std::endl;
-        //std::string temp;
-        //std::cin  >> temp;
+   /* Eigen::Vector3d RPY;
+    getRPY_1(X_k, RPY);*/
+    //if (RPY(2) < 0.0 && RPY(2) > -180.00)
+    //{
+    //    std::cout << "These many cycles without any problem" << numberofPrints << std::endl;
+    //    std::cout << "Mag input is [" << Mag_1(0) << "," << Mag_1(1) << "," << Mag_1(2) << "]" << std::endl;
+    //    getRPY_1(z_k, RPY);
+    //    std::cout << "predicted Yaw is " << RPY(2) << std::endl;
+    //    getRPY_1(Quart, RPY);
+    //    std::cout << "Corrected Yaw is " << RPY(2) << std::endl;
+    //    std::cout << "predicted Quarternion is [" << z_k(0) << "," << z_k(1) << "," << z_k(2) << "," << z_k(3) << "]\n";
+    //    std::cout << "Corrected Quarternion is [" << Quart(0) << "," << Quart(1) << "," << Quart(2) << "," << Quart(3) << "]\n";
+    //    std::cout << "Error_1" << Error_1 << std::endl;
+    //    std::cout << "Error_2" << Error_2 << std::endl;
+    //    //std::string temp;
+    //    //std::cin  >> temp;
 
 
-    }
+    //}
     if (Error_1 > Error_2)
     {
         Error_in_prediction = z_k + Quart;
@@ -217,6 +231,11 @@ void KalmanFilter::Correction()
     P_k = P_k - K_k * H * P_k;
     //std::cout << "13\n";
     numberofPrints++;
+    data.quarternion_measurement[0] = X_k(0);
+    data.quarternion_measurement[1] = X_k(1);
+    data.quarternion_measurement[2] = X_k(2);
+    data.quarternion_measurement[3] = X_k(3);
+    WriteData2CSV();
   /*  std::cout << "Correction Step" << std::endl;
     std::cout << "X_k\n" << X_k << std::endl;
     std::cout << "Triad_new\n" << S_k << std::endl;
@@ -228,7 +247,6 @@ void KalmanFilter::Correction()
     std::string tempstring;
     std::cout << "Correction done \n enter any key and press enter" << std::endl;
     std::cin >> tempstring;*/
-    
 }
 
 void KalmanFilter::getXk_1(double* quart)
@@ -237,7 +255,6 @@ void KalmanFilter::getXk_1(double* quart)
     quart[1] = X_k(1);
     quart[2] = X_k(2);
     quart[3] = X_k(3);
-
 }
 
 void KalmanFilter::getRPY_1(Eigen::Vector4d q, Eigen::Vector3d& angles)
@@ -282,15 +299,17 @@ void KalmanFilter::getRPY(double* angles)
     double siny_cosp = 2 * (q(0) * q(3) + q(1) * q(2));
     double cosy_cosp = 1 - 2 * (q(2) * q(2) + q(3) * q(3));
     angles[2] = std::atan2(siny_cosp, cosy_cosp);
+
+    angles[0] = angles[0] * 180.0 / M_PI;
+    angles[1] = angles[1] * 180.0 / M_PI;
+    angles[2] = angles[2] * 180.0 / M_PI;
 }
 
 void KalmanFilter::UpdateLatestPreviousTime(long long Time)
 {
     previousT = Time;
+    data.Time = Time;
 }
-
-
-
 
 void KalmanFilter::GetJacobian(Eigen::Vector3d U0, Eigen::Matrix4d& Jacobian)
 {
@@ -324,13 +343,21 @@ void KalmanFilter::GetJacobian(Eigen::Vector3d U0, Eigen::Matrix4d& Jacobian)
 }
 void KalmanFilter::SetAngularVelocity(double w_x, double w_y, double w_z, long long Time)
 {
-    //std::cout << "getting hung here" << std::endl;
     Gyro_w(0) = w_x;
     Gyro_w(1) = w_y;
     Gyro_w(2) = w_z;
-    //std::cout << "0-Gyr\n";
-    Prediction(Gyro_w,Time);
-    //std::cout << "0-Prediction\n";
+    
+    if (first_update)
+    {
+        WriteData2CSV();
+        first_update = false;
+    }
+
+    data.gyr[0] = w_x;
+    data.gyr[1] = w_y;
+    data.gyr[2] = w_z;
+    data.Time = Time;
+    Prediction(Gyro_w, Time);
 }
 
 void KalmanFilter::SetMagnetometerMeasurements(double m_x, double m_y, double m_z)
@@ -338,7 +365,10 @@ void KalmanFilter::SetMagnetometerMeasurements(double m_x, double m_y, double m_
     Mag_1(0) = m_x;
     Mag_1(1) = m_y;
     Mag_1(2) = m_z;
-    //std::cout << "0-Mag\n";
+    data.mag[0] = m_x;
+    data.mag[1] = m_y;
+    data.mag[2] = m_z;
+
     
 }
 
@@ -348,12 +378,15 @@ void KalmanFilter::SetAccelerometerMeasurements(double a_x, double a_y, double a
     Acc_1(1) = a_y;
     Acc_1(2) = a_z;
     //std::cout << "0-Acc\n";
+    data.acc[0] = a_x;
+    data.acc[1] = a_y;
+    data.acc[2] = a_z;
     Correction();
     //std::cout << "Correction\n";
 }
 
 
-void KalmanFilter::RungeKuttaEval(Eigen::Vector4d& q0, double T, Eigen::Vector3d U0) // also use previous T in Nano
+void KalmanFilter::RungeKuttaEval(Eigen::Vector4d& q0, long long T, Eigen::Vector3d U0) // also use previous T in Nano
 {
 
     double dT = (T - previousT) * pow(10, -9);
@@ -381,172 +414,31 @@ void KalmanFilter::RungeKuttaEval(Eigen::Vector4d& q0, double T, Eigen::Vector3d
     q0 = q0 / Normq1;
 }
 
-struct Reading
+void KalmanFilter::InitCSVFile()
 {
-    double x;
-    double y;
-    double z;
-    long long T;
-};
-
-Reading MagCSVFile(std::ifstream* file)
-{
-    std::string outstring;
-    *file >> outstring;
-    //std::cout << outstring << std::endl;
-    std::stringstream s_stream(outstring);
-    std::string x[4];
-    for (int j = 0; j < 4; ++j)
-    {
-        std::string substr;
-        getline(s_stream, substr, ',');
-        x[j] =  substr;
-        //std::cout << "substream 1\t" << x[j];
-    }
-    //std::cout << std::endl;
-    Reading reading;
-    reading.x = std::stod(x[0]);
-    //std::cout << "Parsing 1" << std::endl;
-    reading.y = std::stod(x[1]);
-    //std::cout << "Parsing 2" << std::endl;
-    reading.z = std::stod(x[2]);
-    //std::cout << "Parsing 3" << std::endl;
-    std::cout << x[3] << std::endl;
-    reading.T = std::stoll(x[3]);
-    //std::cout << "Parsing done" << std::endl;
-    return reading;
-
+    fout.open(file_name, std::ios::out | std::ios::app);
+    fout << "Acc_x" << "," << "Acc_y" << "," << "Acc_z" << ","
+         << "Mag_x" << "," << "Mag_y" << "," << "Mag_z" << ","
+         << "Gyr_x" << "," << "Gyr_y" << "," << "Gyr_z" << ","
+         << "Quarterion Predict_w" << "," << "Quarterion Predict_x" << "," << "Quarterion Predict_y" << "," << "Quarterion Predict_z" << ","
+         << "Quarterion Correct_w" << "," << "Quarterion Correct_x" << "," << "Quarterion Correct_y" << "," << "Quarterion Correct_z" << ","
+         << "quarternion_Gyro_w" << "," << "quarternion_Gyro_x" << "," << "quarternion_Gyro_y" << "," << "quarternion_Gyro_z" << ","
+         << "TimeStamp" 
+         << std::endl;
+    fout.close();
 }
 
-
-void addNoise(double& x,double& y, double& z, double Range)
+void KalmanFilter::WriteData2CSV()
 {
-    srand(time(0));
-    double v1 = (double)(rand() % 20000 - 10000)/ 10000.0;
-    x += Range * v1;
-    double v2 = (double)(rand() % 20000 - 10000) / 10000.0;
-    y += Range * v2;
-    double v3 = (double)(rand() % 20000 - 10000) / 10000.0;
-    z += Range * v3;
+    fout.open(file_name, std::ios::out | std::ios::app);
+    fout<< std::to_string(data.acc[0]) << "," << std::to_string(data.acc[1]) << "," << std::to_string(data.acc[2]) << ","
+        << std::to_string(data.mag[0]) << "," << std::to_string(data.mag[1]) << "," << std::to_string(data.mag[2]) << ","
+        << std::to_string(data.gyr[0]) << "," << std::to_string(data.gyr[1]) << "," << std::to_string(data.gyr[2]) << ","
+        << std::to_string(data.quarternion_predict[0])     << "," << std::to_string(data.quarternion_predict[1]) << ","  << std::to_string(data.quarternion_predict[2]) << "," << std::to_string(data.quarternion_predict[3]) << ","
+        << std::to_string(data.quarternion_measurement[0]) << "," << std::to_string(data.quarternion_measurement[1])  << "," << std::to_string(data.quarternion_measurement[2]) << "," << std::to_string(data.quarternion_measurement[3]) << ","
+        << std::to_string(data.quarternion_Gyro_pure[0]) << "," << std::to_string(data.quarternion_Gyro_pure[1]) << "," << std::to_string(data.quarternion_Gyro_pure[2]) << "," << std::to_string(data.quarternion_Gyro_pure[3]) << ","
+        << std::to_string(data.Time)
+        << std::endl;
+    data = CSVData();
+    fout.close();
 }
-
-
-
-int main()
-{
-    std::ifstream file;
-    file.open("D:/GITProjects/Kalman Filtering Server/PoseEstimationKF/Sensor_CSV/MagnetometerReadings.csv");
-    if (!file)
-    {
-        std::cerr << "couldn't open file" << std::endl;
-    }
-    std::ofstream writefile;
-    writefile.open("KalmanFilter_results.txt");
-    if (!writefile)
-    {
-        std::cerr << "couldn't open writefile file" << std::endl;
-    }
-    Reading acc;
-    acc.x = 0.0;
-    acc.y = 0.0;
-    acc.z = -1.0;
-
-    Reading Gyro;
-    Gyro.x = 0.0;
-    Gyro.y = 0.0;
-    Gyro.z = M_PI/2;
-    KalmanFilter k; 
-    Eigen::Vector3d rpy; std::string output;
-    for (int i = 0; i < 11999; ++i)
-    {
-        Reading m = MagCSVFile(&file);
-        //std::cout <<"file being read " << i << std::endl;
-        if (i == 0)
-        {
-            std::map<std::string, std::array<double, 3>> values;
-            values["mag0"] = {1.0,0.0,0.0};
-            values["acc0"] = {acc.x,acc.y,acc.z};
-            values["mag_sig"] = {0.10,0.01,0.01};
-            values["acc_sig"] = {0.10,0.01,0.01};
-            values["gyro_drift_0"] = {0.0,0.0,0.0};
-            values["gyro_drift_sig"] = {0.1,0.1,0.1};
-            k = KalmanFilter(values,m.T);
-        }
-        else
-        {
-            Gyro.T = m.T;
-            addNoise(Gyro.x, Gyro.y, Gyro.z, 0.1);
-            addNoise(m.x, m.y, m.z, 0.1);
-            addNoise(acc.x, acc.y, acc.z, 0.1);
-
-            k.SetAngularVelocity(Gyro.x, Gyro.y, Gyro.z, Gyro.T);
-            k.SetMagnetometerMeasurements(m.x, m.y, m.z);
-            //printf("Magvalues are [%f, %f, %f]", m.x, m.y, m.z);
-            k.SetAccelerometerMeasurements(acc.x, acc.y, acc.z);
-            k.getRPY(rpy);
-            //std::cout << "14\n";
-            //printf("yaw is %f \n", rpy(2)*180/M_PI);
-            double yaw = rpy(2) * 180 / M_PI;
-            output = std::to_string(i);
-            output = output + "\t,\t";
-            output = output + std::to_string(yaw);
-            output = output + "\n";
-            writefile << output;
-            //std::cout << "15\n";
-           /* if (i == 1974) std::cout << "1\n";*/
-            
-            //std::cout << "yaw" << output;
-            /*if (rpy(2) > M_PI / 180 * 90.0)
-            {
-                std::string tempstring;
-                std::cout << "Prediction done \n enter any key and press enter" << std::endl;
-                std::cin >> tempstring;
-            }*/
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            if (i % 1000 == 0)
-            {
-                std::cout << i << std::endl;
-            }
-        }
-
-    }
-
-    file.close();
-    writefile.close();
-
-
-    _getch();
-    return 0;
-}
-
-/*
-std::string tempstring;
-    std::cout << "Prediction done \n enter any key and press enter" << std::endl;
-    std::cin >> tempstring;
-
-// Prediction
-
-setw_k
-// init Pk
-
-setQk
-setRk
-
-
-getJacobian()
-getXk1_k = evaluate state space without noise
-
-getPk1_k = Evaluate Jacobian and Qk equation.
-
-
-getSk1 Pk_1, Hk_1 Rk1 equation
-
-getK1 = Pk_1 Hk_1 Sk1 Inverse equation
-
-
-// Correction
-getXk1_k1
-
-setPk1_k1
-
-*/

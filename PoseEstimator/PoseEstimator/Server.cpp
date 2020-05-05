@@ -32,7 +32,7 @@ Server::Server()
 	hint.sin_addr.S_un.S_addr = INADDR_ANY; // Could also use inet_pton .... 
 
 	bind(listening, (sockaddr*)&hint, sizeof(hint));
-	messageSize = 63;
+	messageSize = 100; // message size in android + 1
 	
 }
 
@@ -52,13 +52,13 @@ void Server::run()
 {
 	std::cout << "thread id of server run thread " << std::this_thread::get_id() << "\n";
 	std::cout << "run called" << std::endl;
-	listen(listening, SOMAXCONN);
 	int clientSize = sizeof(client);
+	listen(listening, SOMAXCONN);
+	std::cout << "waiting for client client" << std::endl;
 	clientSocket = accept(listening, (sockaddr*)&client, &clientSize);
-
+	std::cout << "accepted client " << std::endl;
 	char host[NI_MAXHOST];		// Client's remote name
 	char service[NI_MAXSERV];	// Service (i.e. port) the client is connect on
-
 	ZeroMemory(host, NI_MAXHOST); // same as memset(host, 0, NI_MAXHOST);
 	ZeroMemory(service, NI_MAXSERV);
 
@@ -95,19 +95,7 @@ void Server::run()
 		}
 
 		std::string Message = std::string(buf, 0, bytesReceived);
-		std::cout << "message receieved is :\n";
-		std::cout << Message << std::endl;
-		std::cout << "number of chars in buffer is :\n";
-		std::cout << sizeof(buf) / sizeof(char) << std::endl;
-		std::cout << "number of chars in bytes is :\n";
-		std::cout << sizeof(buf) << std::endl;
-		std::cout << "bytes recieved is :" << bytesReceived << std::endl;
-		std::cout << "message size is : " << messageSize << std::endl;
-		std::this_thread::sleep_for(std::chrono::seconds(1));
 
-		
-		//parse.setValue(Message);
-		
 		AddReading(Message);
 		cv.notify_one();
 
@@ -145,9 +133,11 @@ void Server::AddReading(std::string message)
 
 std::vector<std::string> Server::getSensorReadings()
 {
+	//std::cout << "Server text is empty"<< ServerText.empty() << std::endl;
 	std::lock_guard<std::mutex> locker(*Readings_mutex);
 	return ServerText;
 }
+
 
 void Server::clearSensorReadings()
 {	
@@ -155,37 +145,14 @@ void Server::clearSensorReadings()
 	ServerText.clear();
 }
 
-void Server::getSensorMutex(std::mutex* m)
+void Server::setSensorMutex(std::mutex* m)
 {
 	Readings_mutex = m;
 }
 
 
 
-//int main()
-//{
-//
-//	/*Server k;
-//	Parser p;
-//	std::mutex mut;
-//	p.setMutex(&mut);
-//	k.getSensorMutex(&mut);
-//	p.setServer(&k);
-//	std::thread t1(&Server::run, &k);
-//	std::thread t2(&Parser::run, &p);
-//	t1.join();
-//	t2.join();*/
-//
-//
-//	Parser p;
-//	p.KalmanFilter();
-//
-//
-//
-//	int a = 0;
-//	std::cin >> a;
-//	return 0;
-//}
+
 
 
 //int main()

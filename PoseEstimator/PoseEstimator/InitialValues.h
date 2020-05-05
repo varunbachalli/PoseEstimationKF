@@ -21,7 +21,7 @@ private:
 	bool isCalibrated = false;
 	char sensorType;
 	int n = 0;
-	int n_avg_values = 0;
+	int n_avg_values = 300;
 	double avg[3];
 	double var[3];
 	double* x = NULL;

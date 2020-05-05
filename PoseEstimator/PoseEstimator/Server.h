@@ -25,7 +25,7 @@ public:
 	std::vector<std::string> getSensorReadings();
 	void clearSensorReadings();
 
-	void getSensorMutex(std::mutex* m);
+	void setSensorMutex(std::mutex* m);
 
 private:
 	bool loop_ = true;

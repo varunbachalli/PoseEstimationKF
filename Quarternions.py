@@ -17,8 +17,6 @@ def rotate(q, v):
     #return np.asarray(w_rotate[1],w_rotate[2],w_rotate[3])
     return w_rotate
 
-bo = True
-
 def equation(q_0, T, w):
     W = 0.5 * np.asarray( [ [0.0        ,-w[0]        ,-w[1]      ,-w[2]],
                             [w[0]       ,0.0          ,w[2]       ,-w[1]],   
@@ -43,7 +41,23 @@ def equation(q_0, T, w):
     return q_k1
     
 
-    
+def RungeKutta4(q_0, T, w):
+    W = 0.5 * np.asarray( [ [0.0        ,-w[0]        ,-w[1]      ,-w[2]],
+                            [w[0]       ,0.0          ,w[2]       ,-w[1]],   
+                            [w[1]       ,-w[2]        ,0.0        , w[0]],
+                            [w[2]       ,w[1]         ,-w[0]      , 0.0]])
+
+    k1 = np.dot(W, q_0)
+    k2 = np.dot(W, q_0 + T/2 * k1)
+    k3 = np.dot(W, q_0 + T/2 * k2)
+    k4 = np.dot(W, q_0 + T* k3)
+    q_k1 = q_0 + 1/6*T*(k1 + 2*k2 + 2*k3 + k4)
+    absqk = 0.0
+    for i in q_k1:
+        absqk += i**2
+    absqk = np.sqrt(absqk)
+    q_k1 = q_k1/absqk
+    return q_k1
 
 
 q0 = np.asarray([1.0,0.0,0.0,0.0])
