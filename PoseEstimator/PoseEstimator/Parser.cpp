@@ -66,8 +66,14 @@ void Parser::ProcessString(std::string str)
 			{
 				std::cout << "Initial values in Values set \n";
 				std::map<std::string, std::array<double, 3>> Values;
-				Values["mag0"] = avg_mag;
-				Values["acc0"] = avg_acc;
+				std::array<double, 3> temp_mag;
+				std::array<double, 3> temp_acc;
+				memcpy(&temp_mag, &avg_mag, sizeof(double) * 3);
+				memcpy(&temp_acc, &avg_acc, sizeof(double) * 3);
+				NormalizeValues(temp_mag[0], temp_mag[1], temp_mag[2]);
+				NormalizeValues(temp_acc[0], temp_acc[1], temp_acc[2]);
+				Values["mag0"] = temp_mag;
+				Values["acc0"] = temp_acc;
 				Values["mag_sig"] = variance_mag;
 				Values["acc_sig"] = variance_acc;
 				Values["gyro_drift_0"] = avg_gyr;

@@ -29,8 +29,6 @@ void addNoise_init(double& x, double& y, double& z, double Range)
 
 int main()
 {
-
-
 	Server k;
 	Parser p;
 	
@@ -46,23 +44,8 @@ int main()
 
 	t1.join();
 	t2.join();
-	// 
-	// plotter.setMVPmatrix(quart);
-	// std::thread t3(&createAndRunOpenGL, &plotter);
 
-	/*std::this_thread::sleep_for(std::chrono::seconds(3));*/
-
-	// for (int i = 0; i < 7200; ++i)
-	// {
-	// 	angle = i * pi / 180;
-	// 	double quart[4] = { cos(angle / 2), 0.0 ,0.0, sin(angle / 2) };
-	// 	std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	// 	plotter.setMVPmatrix(quart);
-	// }
-	// 
-	// t3.join();
-
-
+	
 	_getch();
 	return 0;
 }

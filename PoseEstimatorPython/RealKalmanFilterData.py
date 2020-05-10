@@ -6,6 +6,7 @@ import matplotlib.animation as animation
 import time
 from pyquaternion import Quaternion
 from scipy.spatial.transform import Rotation as scipyRot
+from Wahba import Wahba
 
 Acc_x = []
 Acc_y = []
@@ -28,6 +29,19 @@ Quarterion_Gyro_w = []
 Quarterion_Gyro_x = []	
 Quarterion_Gyro_y = []	
 Quarterion_Gyro_z = []
+
+Quarterion_Wahba_w = []	
+Quarterion_Wahba_x = []	
+Quarterion_Wahba_y = []	
+Quarterion_Wahba_z = []
+
+Quarterion_Filter_w = []	
+Quarterion_Filter_x = []	
+Quarterion_Filter_y = []	
+Quarterion_Filter_z = []
+
+
+
 TimeStamp = []
 
 Angles_Gyro = [[0.0,0.0,0.0]]
@@ -42,29 +56,26 @@ previousT = 0.0
 X_k = np.asarray([1.0,0.0,0.0,0.0])
 z_k = np.asarray([1.0,0.0,0.0,0.0])
 Q_k = np.identity(3)
-Q_k *= 0.1
+Q_k *= 0.01
 R_k = np.identity(4)
 R_k *= 0.1
 K_k =  np.identity(4)
 
 K_s = []
 
-# def rotate(q, v):
-#     a = q[0]
-#     b = q[1]
-#     c = q[2]
-#     d = q[3]
-#     R = np.asarray([[a**2 + b**2 - c**2 - d**2 ,2*b*c - 2*a*d               ,2*b*d + 2*a*c],
-#                     [2*b*c + 2*a*d              ,a**2 - b**2 + c**2 -d**2   ,2*c*d - 2*a*d],
-#                     [2*b*d- 2*a*c               ,2*c*d + 2*a*b              ,a**2 - b**2 - c**2 +d**2]])
-#     w_rotate = np.dot(R,v)
-#     return w_rotate
+wahba = Wahba(np.asarray(Angles_Gyro),np.asarray(Angles_Gyro))
 
-# def rotate_(q,v):
-#     Q = np.asarray([[-q[1], q[0] ,-q[3],  q[2]],
-#                     [-q[2], q[3],  q[0], -q[1]],
-#                     [-q[3],-q[2],  q[1],  q[0]]])
-#     return np.matmul(Q,v)
+def rotate(q, v):
+    a = q[0]
+    b = q[1]
+    c = q[2]
+    d = q[3]
+    R = np.asarray([[a**2 + b**2 - c**2 - d**2 ,2*b*c - 2*a*d               ,2*b*d + 2*a*c],
+                    [2*b*c + 2*a*d              ,a**2 - b**2 + c**2 -d**2   ,2*c*d - 2*a*b],
+                    [2*b*d- 2*a*c               ,2*c*d + 2*a*b              ,a**2 - b**2 - c**2 +d**2]])
+    w_rotate = np.dot(R,v)
+    return w_rotate
+
 
 def Quart2RPY(q):
     angles = np.asarray([0.0,0.0,0.0])
@@ -78,7 +89,6 @@ def Quart2RPY(q):
     angles[2] = np.arctan2(siny_cosp, cosy_cosp)
     angles = angles * 180.0/np.pi
     return angles
-        
 
 def RungeKutta4(q_0, T, w):
     W = 0.5 * np.asarray( [ [0.0        ,-w[0]        ,-w[1]      ,-w[2]],
@@ -95,10 +105,7 @@ def RungeKutta4(q_0, T, w):
     q_k1 = q_0 + 1/6*T*(k1 + 2*k2 + 2*k3 + k4)
 
     absqk = 0.0
-    for i in q_k1:
-        absqk += i**2
-    absqk = np.sqrt(absqk)
-    q_k1 = q_k1/absqk
+    q_k1 = q_k1/norm(q_k1)
     return q_k1
 
 
@@ -126,7 +133,7 @@ def RotationMatrix2Quart(M):
         qx = (M[2][1] - M[1][2]) / S
         qy = (M[0][2] - M[2][0]) / S
         qz = (M[1][0] - M[0][1]) / S 
-    
+
     elif M[0][0] > M[1][1] and M[0][0] > M[2][2]: 
         S = np.sqrt(1.0 + M[0][0] - M[1][1] - M[2][2]) * 2 # S=4*qx 
         qw = (M[2][1] - M[1][2]) / S
@@ -147,6 +154,33 @@ def RotationMatrix2Quart(M):
         qz = 0.25 * S
     return np.asarray([qw,qx,qy,qz])
 
+def RotationMatrix2Quart_1(M):
+    tr1 = 1.0 + M[0][0] - M[1][1] - M[2][2]
+    tr2 = 1.0 - M[0][0] + M[1][1] - M[2][2]
+    tr3 = 1.0 - M[0][0] - M[1][1] + M[2][2]
+
+    if (tr1 > tr2)and(tr1 > tr3):
+        S = np.sqrt(tr1) * 2; # S=4*qx 
+        qw = (M[2][1] - M[1][2]) / S
+        qx = 0.25 * S
+        qy = (M[0][1] + M[1][0]) / S
+        qz = (M[0][2] + M[2][0]) / S 
+
+    elif (tr2 > tr1) and (tr2 > tr3):
+        S = np.sqrt(tr2) * 2 # S=4*qy
+        qw = (M[0][2] - M[2][0]) / S
+        qx = (M[0][1] + M[1][0]) / S 
+        qy = 0.25 * S
+        qz = (M[1][2] + M[2][1]) / S 
+    else:
+        S = np.sqrt(tr3) * 2; # S=4*qz
+        qw = (M[1][0] - M[0][1]) / S
+        qx = (M[0][2] + M[2][0]) / S
+        qy = (M[1][2] + M[2][1]) / S
+        qz = 0.25 * S
+    return np.asarray([qw,qx,qy,qz])
+    
+
 def norm(a):
     result = 0.0
     for i in a:
@@ -154,40 +188,16 @@ def norm(a):
     result = np.sqrt(result)
     return result
 
-def ComputeTriad(s,m):
-    t1 = s
-    t2 = np.cross(s,m)
-    t2 = t2/norm(t2)
-    t3 = np.cross(t2,t1)
-    R = [[t3[0],t2[0],t1[0]],
-         [t3[1],t2[1],t1[1]],
-         [t3[2],t2[2],t1[2]]]
-    R = np.asarray(R)
-    return R
-
-# def quaternion_multiply(quaternion1, quaternion0):
-#     w0, x0, y0, z0 = quaternion0
-#     w1, x1, y1, z1 = quaternion1
-#     return np.array([-x1 * x0 - y1 * y0 - z1 * z0 + w1 * w0,
-#                      x1 * w0 + y1 * z0 - z1 * y0 + w1 * x0,
-#                      -x1 * z0 + y1 * w0 + z1 * x0 + w1 * y0,
-#                      x1 * y0 - y1 * x0 + z1 * w0 + w1 * z0], dtype=np.float64)
-
-# def DCM2Quart(M):
-#     v1 = np.asarray([1,0,0])
-#     axis_1 = np.cross(v1, M[:,0])
-#     axis_1 = axis_1/norm(axis_1)
-#     angle_1 = np.arccos(M[0,0])
-#     axis_1 = np.sin(angle_1)*axis_1
-#     Quart1 = np.asarray([np.cos(angle_1/2),axis_1[0],axis_1[1],axis_1[2]])
-#     v2R = rotate(Quart1,np.asarray([0,1,0]))
-#     v2R = v2R/norm(v2R)
-#     angle_2 = np.arccos(np.dot(v2R, M[:,1]))
-#     axis_2 = np.asarray([np.sin(angle_2/2),0.0,0.0])
-#     Quart2 = np.asarray([np.cos(angle_2/2),axis_2[0],axis_2[1],axis_2[2]])
-#     Quartf = quaternion_multiply(Quart2,Quart1)
-#     return Quartf
-
+# def ComputeTriad(s,m):
+#     t1 = s
+#     t2 = np.cross(s,m)
+#     t2 = t2/norm(t2)
+#     t3 = np.cross(t2,t1)
+#     R = [[t3[0],t2[0],t1[0]],
+#          [t3[1],t2[1],t1[1]],
+#          [t3[2],t2[2],t1[2]]]
+#     R = np.asarray(R)
+#     return R
 
 
 def SetData():
@@ -195,6 +205,7 @@ def SetData():
         reader = csv.reader(file)
         count = 0
         for row in reader:
+            print(row)
             if(count > 0):
                 Acc_x.append(float(row[0]))
                 Acc_y.append(float(row[1]))
@@ -223,14 +234,14 @@ def SetData():
     print(len(Acc_z))
 
 def init(startValue):
-    global InitialTriad
+    global wahba
     global previousT, Mag_x,Mag_y,Mag_z,Acc_x,Acc_y,Acc_z,TimeStamp
     acc_0 = np.asarray([Acc_x[startValue],Acc_y[startValue],Acc_z[startValue]])
     acc_0 = acc_0/norm(acc_0)
     mag_0 = np.asarray([Mag_x[startValue],Mag_y[startValue],Mag_z[startValue]])
     mag_0 = mag_0/norm(mag_0)
-    InitialTriad = ComputeTriad(acc_0,mag_0)
-    
+    # InitialTriad = ComputeTriad(acc_0,mag_0)
+    wahba = Wahba(acc_0,mag_0)
     previousT = TimeStamp[startValue]
 
 def Prediction(Gyro, T): # Gyro = 3d np array, 
@@ -244,11 +255,11 @@ def Prediction(Gyro, T): # Gyro = 3d np array,
     Ang_x = Angles_Gyro[-1][0] + Gyro[0]*(T-previousT)/10**9*180/np.pi 
     Ang_y = Angles_Gyro[-1][1] + Gyro[1]*(T-previousT)/10**9*180/np.pi
     Ang_z = Angles_Gyro[-1][2] + Gyro[2]*(T-previousT)/10**9*180/np.pi
-    if(Ang_x > 180.0 or Ang_x < -180.0):
+    if(Ang_x > 183.0 or Ang_x < -183.0):
         Ang_x = -Ang_x
-    if(Ang_y > 180.0 or Ang_y < -180.0):
+    if(Ang_y > 183.0 or Ang_y < -183.0):
         Ang_y = -Ang_y
-    if(Ang_z > 180.0 or Ang_z < -180.0):
+    if(Ang_z > 183.0 or Ang_z < -183.0):
         Ang_z = -Ang_z
 
     Angles_Gyro.append([Ang_x,Ang_y,Ang_z])
@@ -256,27 +267,35 @@ def Prediction(Gyro, T): # Gyro = 3d np array,
     # print(S_k)
     z_k = X_k
     S_k_inv = np.linalg.inv(S_k) 
-    K_k = np.matmul(P_k,np.matmul(P_k, S_k_inv))
-    K_k = np.identity(4)*0.01
+    K_k = np.matmul(P_k,S_k_inv)
+    # K_k = np.identity(4)*0.01
     K_s.append(np.linalg.det(K_k))
     previousT = T
 
     
 
 def Correction(Mag,Acc): # Mag = 3d np array, Acc = 3d np array, 
-    global InitialTriad,z_k,X_k,K_k,P_k
+    global wahba,z_k,X_k,K_k,P_k
+    RotationMatrix = wahba.getRotation(Acc,Mag,0.5,0.5)#abs(Acc[2]), 1- abs(Acc[2]))
+    # r = scipyRot.from_matrix(RotationMatrix.transpose())
+    Quart = RotationMatrix2Quart_1(RotationMatrix.transpose())
+    
+    Quarterion_Wahba_w.append(Quart[0])
+    Quarterion_Wahba_x.append(Quart[1])
+    Quarterion_Wahba_y.append(Quart[2])
+    Quarterion_Wahba_z.append(Quart[3])
 
-    TriadNew = ComputeTriad(Acc,Mag)
-    RotationMatrix = np.matmul(TriadNew.transpose(),InitialTriad)
-    r = scipyRot.from_matrix(RotationMatrix)
-    print(RotationMatrix)
-    Quart = r.as_quat()
     # Quart = RotationMatrix2Quart(RotationMatrix)
-    Angles_Triad.append(r.as_euler('xyz', degrees=True))
+    # Angles_Triad.append(r.as_euler('xyz', degrees=True))
     Error_in_prediction = Quart - z_k
     X_k = X_k + np.matmul(K_k,Error_in_prediction)
     P_k = P_k - np.matmul(K_k,P_k)
     X_k = X_k/norm(X_k)
+
+    Quarterion_Filter_w.append(X_k[0])
+    Quarterion_Filter_x.append(X_k[1])
+    Quarterion_Filter_y.append(X_k[2])
+    Quarterion_Filter_z.append(X_k[3])
 
 
 
@@ -343,7 +362,7 @@ for i in range(len(Gyr_x)):
     Correction(Magneto, Accelero) 
     QuartCorrection = np.asarray([Quarterion_Predict_w[i], Quarterion_Predict_x[i],Quarterion_Predict_y[i],Quarterion_Predict_z[i]])
     r = scipyRot.from_quat(X_k)
-
+    
     Angles_Filter.append(r.as_euler('xyz', degrees=True))
 
     Angles_Filter_original.append(Quart2RPY(QuartCorrection).tolist())
@@ -351,71 +370,100 @@ for i in range(len(Gyr_x)):
     Quart_Gyro = np.asarray([Quarterion_Gyro_w[i], Quarterion_Gyro_x[i],Quarterion_Gyro_y[i],Quarterion_Gyro_z[i]])
     Angles_Filter_gyro.append(Quart2RPY(Quart_Gyro).tolist())
 
-print(len(Angles_Filter))
-print(len(Angles_Gyro))
-print(len(Angles_Triad))
+# print(len(Angles_Filter))
+# print(len(Angles_Gyro))
+# print(len(Angles_Triad))
 
 
 Angles_Filter_roll = []
-Angles_Filter_original_roll = []
-Angles_Filter_gyro_roll = []
-Angles_Gyro_roll = []
-Angles_Triad_roll = []
+# Angles_Filter_original_roll = []
+# Angles_Filter_gyro_roll = []
+# Angles_Gyro_roll = []
+# Angles_Triad_roll = []
 Angles_Filter_pitch = []
-Angles_Filter_original_pitch= []
-Angles_Filter_gyro_pitch = []
-Angles_Gyro_pitch = []
-Angles_Triad_pitch = []
+# Angles_Filter_original_pitch= []
+# Angles_Filter_gyro_pitch = []
+# Angles_Gyro_pitch = []
+# Angles_Triad_pitch = []
 Angles_Filter_yaw = []
-Angles_Filter_original_yaw = []
-Angles_Filter_gyro_yaw = []
-Angles_Gyro_yaw = []
-Angles_Triad_yaw = []
+# Angles_Filter_original_yaw = []
+# Angles_Filter_gyro_yaw = []
+# Angles_Gyro_yaw = []
+# Angles_Triad_yaw = []
 
 for i in range(len(Angles_Filter)):
     Angles_Filter_roll.append(Angles_Filter[i][0])
     Angles_Filter_pitch.append(Angles_Filter[i][1])
     Angles_Filter_yaw.append(Angles_Filter[i][2])
 
-    Angles_Filter_original_roll.append(Angles_Filter_original[i][0])
-    Angles_Filter_original_pitch.append(Angles_Filter_original[i][1])
-    Angles_Filter_original_yaw.append(Angles_Filter_original[i][2])
+#     Angles_Filter_original_roll.append(Angles_Filter_original[i][0])
+#     Angles_Filter_original_pitch.append(Angles_Filter_original[i][1])
+#     Angles_Filter_original_yaw.append(Angles_Filter_original[i][2])
 
-    Angles_Filter_gyro_roll.append(Angles_Filter_gyro[i][0])
-    Angles_Filter_gyro_pitch.append(Angles_Filter_gyro[i][1])
-    Angles_Filter_gyro_yaw.append(Angles_Filter_gyro[i][2])
+#     Angles_Filter_gyro_roll.append(Angles_Filter_gyro[i][0])
+#     Angles_Filter_gyro_pitch.append(Angles_Filter_gyro[i][1])
+#     Angles_Filter_gyro_yaw.append(Angles_Filter_gyro[i][2])
 
-    Angles_Gyro_roll.append(Angles_Gyro[i][0])
-    Angles_Gyro_pitch.append(Angles_Gyro[i][1])
-    Angles_Gyro_yaw.append(Angles_Gyro[i][2])
+#     Angles_Gyro_roll.append(Angles_Gyro[i][0])
+#     Angles_Gyro_pitch.append(Angles_Gyro[i][1])
+#     Angles_Gyro_yaw.append(Angles_Gyro[i][2])
 
-    Angles_Triad_roll.append(Angles_Triad[i][0])
-    Angles_Triad_pitch.append(Angles_Triad[i][1])
-    Angles_Triad_yaw.append(Angles_Triad[i][2])
+#     Angles_Triad_roll.append(Angles_Triad[i][0])
+#     Angles_Triad_pitch.append(Angles_Triad[i][1])
+#     Angles_Triad_yaw.append(Angles_Triad[i][2])
 
-plt.figure('roll')
-plt.plot(range(len(Angles_Filter)),Angles_Filter_roll,color = 'red', label = 'Angles_Filter_roll')
-# plt.plot(range(len(Angles_Filter_original)),Angles_Filter_original_roll,color = 'black', label = 'Angles_Filter_original')
-# plt.plot(range(len(Angles_Filter_gyro_roll)),Angles_Filter_gyro_roll,color = 'blue', label = 'Angles_Filter_gyro_original')
-plt.plot(range(len(Angles_Filter)),Angles_Gyro_roll,color = 'blue', label = 'Angles_Gyro_roll')
-plt.plot(range(len(Angles_Filter)),Angles_Triad_roll,color = 'green', label = 'Angles_Triad_roll')
+# plt.figure('roll')
+# plt.plot(range(len(Angles_Filter)),Angles_Filter_roll,color = 'red', label = 'Angles_Filter_roll')
+# # plt.plot(range(len(Angles_Filter_original)),Angles_Filter_original_roll,color = 'black', label = 'Angles_Filter_original')
+# # plt.plot(range(len(Angles_Filter_gyro_roll)),Angles_Filter_gyro_roll,color = 'blue', label = 'Angles_Filter_gyro_original')
+# plt.plot(range(len(Angles_Filter)),Angles_Gyro_roll,color = 'blue', label = 'Angles_Gyro_roll')
+# plt.plot(range(len(Angles_Filter)),Angles_Triad_roll,color = 'green', label = 'Angles_Triad_roll')
+# plt.legend()
+# plt.figure('pitch')
+# plt.plot(range(len(Angles_Filter)),Angles_Filter_pitch,color = 'red',  label = 'Angles_Filter_pitch')
+# # plt.plot(range(len(Angles_Filter_original)),Angles_Filter_original_pitch,color = 'black', label = 'Angles_Filter_original_pitch')
+# # plt.plot(range(len(Angles_Filter_gyro_pitch)),Angles_Filter_gyro_pitch,color = 'blue', label = 'Angles_Filter_gyro_original')
+# plt.plot(range(len(Angles_Filter)),Angles_Gyro_pitch,color = 'blue',  label = 'Angles_Gyro_pitch')
+# plt.plot(range(len(Angles_Filter)),Angles_Triad_pitch,color = 'green',  label = 'Angles_Triad_pitch')
+# plt.legend()
+# plt.figure('yaw')
+# plt.plot(range(len(Angles_Filter)),Angles_Filter_yaw,color = 'red', label = 'Angles_Filter_yaw')
+# # plt.plot(range(len(Angles_Filter_original)),Angles_Filter_original_yaw,color = 'black', label = 'Angles_Filter_original_yaw')
+# # plt.plot(range(len(Angles_Filter_gyro_yaw)),Angles_Filter_gyro_yaw,color = 'blue', label = 'Angles_Filter_gyro_original')
+# plt.plot(range(len(Angles_Filter)),Angles_Gyro_yaw,color = 'blue', label = 'Angles_Gyro_yaw')
+# plt.plot(range(len(Angles_Filter)),Angles_Triad_yaw,color = 'green', label = 'Angles_Triad_yaw')
+# plt.legend()
+
+
+plt.figure('W')
+# plt.plot(range(len(Quarterion_Wahba_w)),Quarterion_Wahba_w,color = 'red', label = 'Wahba')
+plt.plot(range(len(Quarterion_Filter_w)),Quarterion_Filter_w,color = 'blue', label = 'Filter')
+plt.plot(range(len(Quarterion_Gyro_w)),Quarterion_Gyro_w,color = 'green', label = 'Gyro')
+plt.plot(range(len(Quarterion_Correct_w)),Quarterion_Correct_w, color = 'black', label = 'real')
 plt.legend()
-plt.figure('pitch')
-plt.plot(range(len(Angles_Filter)),Angles_Filter_pitch,color = 'red',  label = 'Angles_Filter_pitch')
-# plt.plot(range(len(Angles_Filter_original)),Angles_Filter_original_pitch,color = 'black', label = 'Angles_Filter_original_pitch')
-# plt.plot(range(len(Angles_Filter_gyro_pitch)),Angles_Filter_gyro_pitch,color = 'blue', label = 'Angles_Filter_gyro_original')
-plt.plot(range(len(Angles_Filter)),Angles_Gyro_pitch,color = 'blue',  label = 'Angles_Gyro_pitch')
-plt.plot(range(len(Angles_Filter)),Angles_Triad_pitch,color = 'green',  label = 'Angles_Triad_pitch')
-plt.legend()
-plt.figure('yaw')
-plt.plot(range(len(Angles_Filter)),Angles_Filter_yaw,color = 'red', label = 'Angles_Filter_yaw')
-# plt.plot(range(len(Angles_Filter_original)),Angles_Filter_original_yaw,color = 'black', label = 'Angles_Filter_original_yaw')
-# plt.plot(range(len(Angles_Filter_gyro_yaw)),Angles_Filter_gyro_yaw,color = 'blue', label = 'Angles_Filter_gyro_original')
-plt.plot(range(len(Angles_Filter)),Angles_Gyro_yaw,color = 'blue', label = 'Angles_Gyro_yaw')
-plt.plot(range(len(Angles_Filter)),Angles_Triad_yaw,color = 'green', label = 'Angles_Triad_yaw')
+
+plt.figure('X')
+# plt.plot(range(len(Quarterion_Wahba_x)),Quarterion_Wahba_x,color = 'red', label = 'Wahba')
+plt.plot(range(len(Quarterion_Filter_x)),Quarterion_Filter_x,color = 'blue', label = 'Filter')
+plt.plot(range(len(Quarterion_Gyro_x)),Quarterion_Gyro_x,color = 'green', label = 'Gyro')
+plt.plot(range(len(Quarterion_Correct_x)),Quarterion_Correct_x, color = 'black', label = 'real')
 plt.legend()
 
+plt.figure('Y')
+# plt.plot(range(len(Quarterion_Wahba_y)),Quarterion_Wahba_y,color = 'red', label = 'Wahba')
+plt.plot(range(len(Quarterion_Filter_y)),Quarterion_Filter_y,color = 'blue', label = 'Filter')
+plt.plot(range(len(Quarterion_Gyro_y)),Quarterion_Gyro_y,color = 'green', label = 'Gyro')
+plt.plot(range(len(Quarterion_Correct_y)),Quarterion_Correct_y, color = 'black', label = 'real')
+plt.legend()
 
+plt.figure('Z')
+# plt.plot(range(len(Quarterion_Wahba_z)),Quarterion_Wahba_z,color = 'red', label = 'Wahba')
+plt.plot(range(len(Quarterion_Filter_z)),Quarterion_Filter_z,color = 'blue', label = 'Filter')
+plt.plot(range(len(Quarterion_Gyro_z)),Quarterion_Gyro_z,color = 'green', label = 'Gyro')
+plt.plot(range(len(Quarterion_Correct_z)),Quarterion_Correct_z, color = 'black', label = 'real')
+plt.legend()
+
+# plt.figure("Roll Pitch Yaw")
 
 plt.figure()
 plt.plot(range(len(K_s)), K_s)
