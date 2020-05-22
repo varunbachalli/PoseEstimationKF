@@ -8,3 +8,6 @@
 !*/
 !*.cu
 !*.cuh
+!*.shader
+!*.eps
+!*.png

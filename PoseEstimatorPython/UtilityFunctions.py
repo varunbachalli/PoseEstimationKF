@@ -33,4 +33,3 @@ def DimensionalSplit(S):
         A.append(B)     
     return A
 
-

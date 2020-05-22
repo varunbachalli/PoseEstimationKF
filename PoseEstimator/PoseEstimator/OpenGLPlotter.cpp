@@ -127,7 +127,6 @@ unsigned int OpenGLPlotter::CompileShader(const std::string& source, unsigned in
         return 0;
     }
 
-    std::cout << "id is " << id << std::endl;
     std::cout << "compilation done" << std::endl;
     
     return id;
@@ -316,17 +315,6 @@ void OpenGLPlotter::WindowCreator()
     glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 72, colors.data, GL_DYNAMIC_DRAW);
 
-    //for (int i = 0; i < 72; ++i)
-    //{
-    //    std::cout << *(colors.data + i) << "\t";
-    //}
-    //std::cout << std::endl;
-
-    //for (int i = 0; i < 72; ++i)
-    //{
-    //    std::cout << *(vertices.data + i) << "\t";
-    //}
-    //std::cout << std::endl;
     glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
 }
 
@@ -370,13 +358,9 @@ void OpenGLPlotter::run()
         );
 
         
-        
-       /* angle = angle + factor * pi;
-        double quart[4] = { cos(angle / 2), 0.0 ,0.0, sin(angle / 2) };
-        setMVPmatrix(quart);*/
+
         glm::mat4 mvp_ = getMVPmatrix();
-        /*if (angle >= 719.00)
-            angle = 0.0;*/
+
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &mvp_[0][0]);
 
 
@@ -397,17 +381,3 @@ void OpenGLPlotter::run()
     free(colors.data);
     free(vertices.data);
 }
-
-
-//void OpenGLPlotter::updateBuffers()
-//{
-//
-//}
-
-
-//int main()
-//{
-//    OpenGLPlotter open;
-//    open.run();
-//    return 0;
-//}

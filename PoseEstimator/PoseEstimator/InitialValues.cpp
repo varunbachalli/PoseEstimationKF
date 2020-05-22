@@ -35,14 +35,14 @@ void InitialValues::setValuesforAverage(double x_, double y_, double z_)
 
 }
 
-void InitialValues::getAverageValues(double average[3]) // when calling clear the pointer.
+std::array<double, 3> InitialValues::getAverageValues() // when calling clear the pointer.
 {
-	memcpy(average, avg, sizeof(double) * 3);
+	return avg;
 }
 
-void InitialValues::getVariance(double variance[3])
+std::array<double, 3> InitialValues::getVariance()
 {
-	memcpy(variance, var, sizeof(double) * 3);
+	return var;
 }
 
 void InitialValues::compute_mean_and_variance()
@@ -50,12 +50,6 @@ void InitialValues::compute_mean_and_variance()
 	avg[0] = avg[0] / n_avg_values;
 	avg[1] = avg[1] / n_avg_values;
 	avg[2] = avg[2] / n_avg_values;
-
-	/*for(int i = 0; i < n_avg_values; ++i)
-	{
-		printf("[%f,%f,%f]\n", x[i], y[i], z[i]);
-	}
-*/
 
 	for (int i = 0; i < n_avg_values; ++i)
 	{

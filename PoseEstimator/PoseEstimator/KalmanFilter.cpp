@@ -10,21 +10,28 @@ KalmanFilter::KalmanFilter(std::map<std::string, std::array<double, 3>> Values, 
 {
 	set_mag_0(Values.find("mag0")->second);
 	set_acc_0(Values.find("acc0")->second);
-	set_mag_sig(Values.find("mag_sig")->second);
-	set_acc_sig(Values.find("acc_sig")->second);
-	set_gyro_drift_0(Values.find("gyro_drift_0")->second);
-	set_gyro_drift_sig(Values.find("gyro_drift_sig")->second);
 	compute_initial_params();
-	std::cout << "Init Kalman" << std::endl;
 	previousT = timestamp;
+
+	Mag_1 = Eigen::Vector3d::Zero();
+	Acc_1 = Eigen::Vector3d::Zero();
+	Gyro_w = Eigen::Vector3d::Zero();
 }
 
-void KalmanFilter::set_mag_0(std::array<double, 3> mag) { Mag_0 << mag[0], mag[1], mag[2]; std::string text = "mag_0 : " + std::to_string(mag[0]) + ","+ std::to_string(mag[1]) + ","+ std::to_string(mag[2]); WriteTextFile(text); }
-void KalmanFilter::set_acc_0(std::array<double, 3> acc) { Acc_0 << acc[0], acc[1], acc[2]; std::string text = "acc_0 : " + std::to_string(acc[0]) + "," + std::to_string(acc[1]) + "," + std::to_string(acc[2]); WriteTextFile(text);}
-void KalmanFilter::set_mag_sig(std::array<double, 3> mag_sig) { R_Sigma[0] = 10 * mag_sig[0]; R_Sigma[1] = 10 * mag_sig[1]; R_Sigma[2] = 10 * mag_sig[2]; }
-void KalmanFilter::set_acc_sig(std::array<double, 3> acc_sig) { R_Sigma[3] = 10 * acc_sig[0]; R_Sigma[4] = 10 * acc_sig[1]; R_Sigma[5] = 10 * acc_sig[2]; }
-void KalmanFilter::set_gyro_drift_0(std::array<double, 3> gyro_drift) { Gyro_drift_0 << gyro_drift[0], gyro_drift[1], gyro_drift[2]; }
-void KalmanFilter::set_gyro_drift_sig(std::array<double, 3> gyro_sig) { Gyro_Sigma << gyro_sig[0], gyro_sig[1], gyro_sig[2]; }
+void KalmanFilter::LowPassFilter(Eigen::Vector3d Reading, Eigen::Vector3d& y, double alpha)
+{
+	y = alpha * Reading + (1 - alpha) * y;
+}
+
+void KalmanFilter::set_mag_0(std::array<double, 3> mag) { 
+	Mag_0 << mag[0], mag[1], mag[2];
+	std::string text = "mag_0 : " + std::to_string(mag[0]) + ","+ std::to_string(mag[1]) + ","+ std::to_string(mag[2]); WriteTextFile(text); 
+}
+void KalmanFilter::set_acc_0(std::array<double, 3> acc) {
+	Acc_0 << acc[0], acc[1], acc[2]; 
+	std::string text = "acc_0 : " + std::to_string(acc[0]) + "," + std::to_string(acc[1]) + "," + std::to_string(acc[2]); WriteTextFile(text);
+}
+
 
 Eigen::Matrix3d KalmanFilter::WahbaSVDRotation(Eigen::Vector3d Mag, Eigen::Vector3d Acc, double k_acc, double k_mag)
 {
@@ -60,10 +67,10 @@ void KalmanFilter::compute_initial_params()
 	WriteTextFile(text);
 
 	Q_k = Eigen::MatrixXd::Identity(3, 3);
-	Q_k = Q_k * 0.01;
+	Q_k = Q_k * 1000;
 	
 	R_k = Eigen::Matrix4d::Identity(4, 4);
-	R_k = R_k * 0.1;
+	R_k = R_k * 100;
 
 	P_k = Eigen::MatrixXd::Identity(4, 4);
 }
@@ -152,23 +159,22 @@ void KalmanFilter::Prediction(Eigen::Vector3d Gyro, long long T) // Time is in N
 	previousT = T;
 }
 
+double KalmanFilter::Comparator(Eigen::Vector4d q1, Eigen::Vector4d q2)
+{
+	return q1(0) * q2(0) + q1(1) * q2(1) + q1(2) * q2(2) + q1(3) * q2(3);
+}
 void KalmanFilter::Correction()
 {
-	//Eigen::Matrix3d RotationMatrix = WahbaSVDRotation(Mag_1, Acc_1, abs(Acc_1[2]), 1 - (abs(Acc_1[2]))).transpose();
 	Eigen::Matrix3d RotationMatrix = WahbaSVDRotation(Mag_1, Acc_1, 0.5, 0.5);
 	RotationMatrix.transposeInPlace();
 	Eigen::Vector4d Y_k;
 	RotatationMatrix2Quarternion(RotationMatrix, Y_k);
-	double comparator = Y_k.dot(z_k);
-	if (comparator <= 1.2 && comparator >= 0.9)
+	double comparator = Comparator(Y_k,z_k);
+	if (comparator < 0.0)
 	{
-		X_k = X_k + (K_k * (Y_k - z_k));
+		Y_k = -1 * Y_k;
 	}
-	else if(comparator >= -1.2 && comparator <= -0.9)
-	{
-		X_k = X_k + (K_k * (-Y_k - z_k));
-	}
-	
+	X_k = X_k + (K_k * (Y_k - z_k));
 	X_k = X_k / X_k.norm();
 	P_k = P_k - (K_k * P_k);
 	std::string text = "X_k : " + std::to_string(X_k(0)) + "," + std::to_string(X_k(1)) + "," + std::to_string(X_k(2)) + "," + std::to_string(X_k(3));
@@ -184,9 +190,6 @@ void KalmanFilter::getXk_1(double* quart)
 	quart[2] = X_k(2);
 	quart[3] = X_k(3);
 }
-
-
-
 
 void KalmanFilter::getRPY_1(Eigen::Vector4d q, Eigen::Vector3d& angles)
 {
@@ -258,11 +261,16 @@ void KalmanFilter::GetJacobian_B(Eigen::Vector4d q, Eigen::Matrix<double, 4,3>& 
 	Jacobian = Jacobian / 2;
 
 }
+
 void KalmanFilter::SetAngularVelocity(double w_x, double w_y, double w_z, long long Time)
 {
-	Gyro_w(0) = -w_x;
-	Gyro_w(1) = -w_y;
-	Gyro_w(2) = -w_z;
+	Eigen::Vector3d reading;
+	
+	Gyro_w(0) = w_x;
+	Gyro_w(1) = w_y;
+	Gyro_w(2) = w_z;
+
+	//LowPassFilter(reading, Gyro_w,0.95);
 	std::string text = "gyro : " + std::to_string(Gyro_w(0)) + "," + std::to_string(Gyro_w(1)) + "," + std::to_string(Gyro_w(2));
 	WriteTextFile(text);
 	Prediction(Gyro_w, Time);
@@ -270,9 +278,12 @@ void KalmanFilter::SetAngularVelocity(double w_x, double w_y, double w_z, long l
 
 void KalmanFilter::SetMagnetometerMeasurements(double m_x, double m_y, double m_z)
 {
-	Mag_1(0) = m_x;
-	Mag_1(1) = m_y;
-	Mag_1(2) = m_z;
+	Eigen::Vector3d reading;
+	reading(0) = m_x;
+	reading(1) = m_y;
+	reading(2) = m_z;
+	LowPassFilter(reading, Mag_1,0.1);
+
 	std::string text = "Mag_1 : " + std::to_string(Mag_1(0)) + "," + std::to_string(Mag_1(1)) + "," + std::to_string(Mag_1(2));
 	WriteTextFile(text);
 
@@ -280,9 +291,12 @@ void KalmanFilter::SetMagnetometerMeasurements(double m_x, double m_y, double m_
 
 void KalmanFilter::SetAccelerometerMeasurements(double a_x, double a_y, double a_z)
 {
-	Acc_1(0) = a_x;
-	Acc_1(1) = a_y;
-	Acc_1(2) = a_z;
+	Eigen::Vector3d reading;
+	reading(0) = a_x;
+	reading(1) = a_y;
+	reading(2) = a_z;
+	LowPassFilter(reading, Acc_1, 0.1);
+
 	std::string text = "Acc_1 : " + std::to_string(Acc_1(0)) + "," + std::to_string(Acc_1(1)) + "," + std::to_string(Acc_1(2));
 	WriteTextFile(text);
 	Correction();

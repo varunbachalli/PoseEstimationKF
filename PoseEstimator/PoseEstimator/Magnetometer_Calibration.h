@@ -32,13 +32,11 @@ public:
 	
 private:
 	void ClearHeapValues();
-	
-	//Eigen::Matrix3d get_W();
-	//Eigen::Vector3d get_bias();
+
 	void setUncalibratedValues();
 	
 	int numberOfEvaluationsJacobi = 0;
-	const static int total_values = 2000;
+	const static int total_values = 100;
 	int num_rows = 0;
 	Eigen::Vector3d bias = Eigen::Vector3d::Zero();
 	Eigen::Matrix3d W;

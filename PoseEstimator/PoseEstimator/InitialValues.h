@@ -5,6 +5,7 @@
 
 #include <map>
 #include <vector>
+#include <array>
 
 class InitialValues
 {
@@ -12,8 +13,8 @@ public:
 	InitialValues();
 	InitialValues(int numvalues);
 	void setValuesforAverage(double x_, double y_, double z_);
-	void getAverageValues(double average[3]);
-	void getVariance(double variance[3]);
+	std::array<double, 3> getAverageValues();
+	std::array<double, 3> getVariance();
 	bool sensorCalibrated();
 private:
 
@@ -22,8 +23,8 @@ private:
 	char sensorType;
 	int n = 0;
 	int n_avg_values = 300;
-	double avg[3];
-	double var[3];
+	std::array<double,3> avg;
+	std::array<double, 3> var;
 	double* x = NULL;
 	double* y = NULL;
 	double* z = NULL;

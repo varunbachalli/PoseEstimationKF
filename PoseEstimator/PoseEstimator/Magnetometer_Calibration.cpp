@@ -7,21 +7,16 @@ Magnetometer_Calibration::Magnetometer_Calibration()
 		x = (double*)malloc(sizeof(double) * total_values);
 		y = (double*)malloc(sizeof(double) * total_values);
 		z = (double*)malloc(sizeof(double) * total_values);
-		UncalibratedValues = (double*)malloc(sizeof(double) * total_values * 6);  //*(UncalibratedValues + i * col + j)
+		UncalibratedValues = (double*)malloc(sizeof(double) * total_values * 6); 
 }
 
-void Magnetometer_Calibration::setValues(double x_, double y_, double z_) // only for magnetometer
+void Magnetometer_Calibration::setValues(double x_, double y_, double z_)
 {
 	// pointer to row n = UncalibratedValues + n*rows
 	printf("%d values receivd\n", num_rows + 1);
 	 // once it comes to 999 , then update to 1000,
 	if (num_rows == total_values) 
 	{
-		for (int count = 0; count < total_values; ++count)
-		{
-			printf("[%f,%f,%f]\n", x[count], y[count], z[count]);
-		}
-
 		bias(0) = bias(0) / total_values;
 		bias(1) = bias(1) / total_values;
 		bias(2) = bias(2) / total_values;
@@ -50,13 +45,13 @@ void Magnetometer_Calibration::setValues(double x_, double y_, double z_) // onl
 
 void Magnetometer_Calibration::CorrectValues(double& x_, double& y_, double& z_)
 {
-	Eigen::Vector3d MeasuredValue;
+	/*Eigen::Vector3d MeasuredValue;
 	MeasuredValue << x_, y_, z_;
 	Eigen::Vector3d CorrectedValue = MeasuredValue - bias;
 	CorrectedValue = W * CorrectedValue;
 	x_ = CorrectedValue(0);
 	y_ = CorrectedValue(1);
-	z_ = CorrectedValue(2);
+	z_ = CorrectedValue(2);*/
 }
 
 void Magnetometer_Calibration::ClearHeapValues()
@@ -74,12 +69,6 @@ void Magnetometer_Calibration::setUncalibratedValues()
 		double x_ = *(x + i) - bias(0); 
 		double y_ = *(y + i) - bias(1);
 		double z_ = *(z + i) - bias(2);
-		if (i == 0)
-		{
-			printf("bias is [%f,%f,%f]", bias(0), bias(1), bias(2));
-			printf("variables before [%f,%f,%f]", *(x + i), *(y + i), *(z + i));
-			printf("variables after [%f,%f,%f]", x_,y_,z_);
-		}
 		*(UncalibratedValues + i ) = x_ * x_; // a
 		*(UncalibratedValues + i  + total_values * 1) = y_ * y_; // b
 		*(UncalibratedValues + i  + total_values * 2) = z_ * z_; // c
@@ -88,7 +77,6 @@ void Magnetometer_Calibration::setUncalibratedValues()
 		*(UncalibratedValues + i  + total_values * 5) = 2 * y_ * z_; // f
 	}
 
-	std::cout << "A and b set \n";
 }
 
 void Magnetometer_Calibration::LargestOffDiagonal(Eigen::Matrix3d A, int a[2])
@@ -107,7 +95,6 @@ void Magnetometer_Calibration::LargestOffDiagonal(Eigen::Matrix3d A, int a[2])
 				k = i;
 				l = j;
 			}
-			printf("A[%d,%d] = %f and max is %f \n", i, j, A(i,j), Max);
 		}
 	}
 	std::cout << std::endl;
@@ -136,9 +123,6 @@ Eigen_Vec_Vals Magnetometer_Calibration::JacobiMethod(Eigen::Matrix3d A)
 	{
 		int a[2];
 		LargestOffDiagonal(Eig.EigenValues, a);
-		/*std::cout << Eig.EigenValues << std::endl;
-		printf("largest off diagonal element = %f, position = [%d,%d]\n", Eig.EigenValues(a[0], a[1]), a[0], a[1]);*/
-
 		double theta = 0.0;
 		if(Eig.EigenValues(a[0], a[0]) - Eig.EigenValues(a[1], a[1]) == 0.0) // if (Eig.EigenValues[a][a] = Eig.EigenValues[b][b])
 		{
@@ -149,27 +133,18 @@ Eigen_Vec_Vals Magnetometer_Calibration::JacobiMethod(Eigen::Matrix3d A)
 		}
 		else
 		{
-			/*std::cout << "entered here" << std::endl;*/
 			theta = 0.5 * atan2(2 * Eig.EigenValues(a[0], a[1]), Eig.EigenValues(a[0], a[0]) - Eig.EigenValues(a[1], a[1]));
 		}
-		/*std::cout << "pi/4 = " << pi / 4 << std::endl;
 
-		printf("rotation by angle cos(%f) = %f\n", theta, cos(theta));*/
-		
 		Eigen::Matrix3d S1 = Eigen::Matrix3d::Identity();
 		S1(a[0], a[0]) =	cos(theta);
 		S1(a[1], a[1]) =	cos(theta);
 		S1(a[0], a[1]) = -1 * sin(theta);
 		S1(a[1], a[0]) =	sin(theta);
-		
-	/*	std::cout << "rotation matrix" << std::endl;
-		std::cout << S1 << std::endl;*/
+
 		Eig.EigenValues = S1.transpose() * (Eig.EigenValues * S1);
 		Eig.EigenVectors = Eig.EigenVectors * S1;
 
-		/*std::cout << "resulting eigen matrix and vector" << std::endl;
-		std::cout << Eig.EigenValues << std::endl;
-		std::cout << Eig.EigenVectors << std::endl;*/
 
 		if (Eig.EigenValues.isDiagonal(0.001) || IsDoubleZero(cos(theta)-1.0))
 		{
@@ -188,12 +163,6 @@ Eigen::Matrix3d Magnetometer_Calibration::LeastSquares_calculation(double* A)
 	Eigen::Map<Eigen::VectorXd> ATb(values.ATb, 6);
 	Eigen::VectorXd X = ATA.colPivHouseholderQr().solve(ATb);
 	Eigen::Matrix3d R;
-	// [a,b,c,d,e,f] = X(0,1,2,3,4,5) needs to be transformed into
-	// [[a d e]
-	//	[d b f]
-	//	[e f c]]
-	// 
-	
 	R(0, 0) = X(0);
 	R(1, 1) = X(1);
 	R(2, 2) = X(2);
@@ -203,8 +172,6 @@ Eigen::Matrix3d Magnetometer_Calibration::LeastSquares_calculation(double* A)
 	R(2, 0) = X(4);
 	R(1, 2) = X(5);
 	R(2, 1) = X(5);
-
-	
 	return R;
 }
 
@@ -213,7 +180,6 @@ void Magnetometer_Calibration::setW()
 	std::cout << "setting W" << std::endl;
 	setUncalibratedValues();
 	Eigen::Matrix3d R = LeastSquares_calculation(UncalibratedValues);
-	std::cout << "least squares done \n";
 	std::cout << R << std::endl;
 	Eigen_Vec_Vals Eig = JacobiMethod(R);
 
@@ -281,15 +247,4 @@ void TestCalibration()
 		}
 	}
 
-	//Eigen::Vector3d Bias = calib.get_bias();
-	//Eigen::Matrix3d W = calib.get_W();
-
 }
-
-//int main()
-//{
-//
-//	TestCalibration();
-//	_getch();
-//	return 0;
-//}

@@ -20,15 +20,15 @@ public:
 	
 	void run();
 	void setMutex(std::mutex* m);
-	void clearLatestMeasurements();
 	void setValue(std::string serverText);
 	void setServer(Server* server);
 	void WriteCalibrationMeasurement(std::array<double , 3> measurement);
 	void WriteKalmanFilterMeasurement(std::array<double, 3> measurement, long long Time, char Type);
 	void ExecuteKalmanFilter();
-	static void NormalizeValues(double& x, double& y, double& z);
+	static void NormalizeValues(std::array<double, 3>& arr);
 private :
 	void CreateAndRunOpenGLPlotter();
+
 	std::condition_variable cond;
 	std::condition_variable* cv;
 	
@@ -70,7 +70,6 @@ private :
 
 	void WriteTextFile(std::string str);
 
-	LatestMeasurements latestMeasurment;
 	Server* s;
 
 

@@ -6,7 +6,16 @@
 #include <vector>
 #include <stdio.h>
 #include <conio.h>
-#include "Structs_header.h"
+
+
+struct LeastSquares
+{
+	double* ATA;
+	double* ATb;
+	int numstates;
+};
+
+
 __global__ void multiply(double* A, double* A_t, int numvalues);
 __global__ void ATA(double* A, double* A_t, double* C, int num_values_in_A);// A and A_t = numstates x numsamples 
 int numThreads(int numstates);

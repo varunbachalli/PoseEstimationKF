@@ -5,7 +5,6 @@
 #include <regex>
 #include <mutex>
 #include <condition_variable>
-#include "Structs_header.h"
 #include <Eigen/Dense>
 #pragma comment (lib, "ws2_32.lib")
 
@@ -18,8 +17,7 @@ public:
 	void run();
 	void setLoop(bool b);
 	bool getLoop();
-	void run_2();
-	
+
 	std::condition_variable* getCV();
 	void AddReading(std::string message);
 	std::vector<std::string> getSensorReadings();

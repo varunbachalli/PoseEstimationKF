@@ -13,6 +13,14 @@ class KalmanFilter:
         self.Q *= q
     def setR(self,r):
         self.R *= r
+    def Comparator(self,q1, q2):
+        q1 = np.asarray([q1[0],-q1[1],-q1[2],-q1[3]])
+        Q = np.asarray([[q1[0]        ,-q1[1]        ,-q1[2]      ,-q1[3]],
+                        [q1[1]       ,q1[0]          ,-q1[3]       ,q1[2]],   
+                        [q1[2]       ,q1[3]        ,q1[0]        , -q1[1]],
+                        [q1[3]       ,-q1[2]         ,q1[1]      , q1[0]]])
+        q2 = np.asarray([q2[0],q2[1],q2[2],q2[3]])
+        return np.matmul(Q,q2)
 
     @staticmethod
     def RungeKutta4(q_0, T, w):
@@ -38,8 +46,8 @@ class KalmanFilter:
                                 [w[1]       ,-w[2]        ,0.0        , w[0]],
                                 [w[2]       ,w[1]         ,-w[0]      , 0.0]])
         return W
-    
-    
+
+        
     def GetJacobian_B(self,q):
         W = 0.5 * np.asarray( [ [-q[1],     -q[2],    -q[3]],
                                 [ q[0],      q[3],    -q[2]],   
@@ -60,16 +68,12 @@ class KalmanFilter:
         return z_k, P_k, K_k
 
     def Correction(self,Mag, Acc, z_k, P_k, K_k): 
-        Quart = self.wahba.getQuarternion(Acc,Mag,0.5,0.5)
+        Quart = self.wahba.getQuarternion(Acc,Mag, abs(Acc[2]), 1 - (abs(Acc[2])))
         # Error_in_prediction = []
-        comparator  = np.dot(Quart,z_k)
-        if(comparator<=1.0 and comparator >= 0.5):
-            Error_in_prediction = Quart - z_k
-        if(comparator>=-1.0 and comparator <= -0.5):
-            Error_in_prediction = -Quart - z_k
-        else:
-            Error_in_prediction = np.zeros(4)
-
+        comparator = self.Comparator(Quart,z_k)
+        if(comparator[0] < 0.0):
+            Quart = -Quart
+        Error_in_prediction = Quart - z_k
         X_k = z_k + np.matmul(K_k,Error_in_prediction)
         P_k = P_k - np.matmul(K_k,P_k)
         X_k = X_k/norm(X_k)
