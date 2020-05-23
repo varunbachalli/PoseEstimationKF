@@ -11,3 +11,5 @@
 !*.shader
 !*.eps
 !*.png
+!*.xml
+!*.java
