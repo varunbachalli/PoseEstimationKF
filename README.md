@@ -75,6 +75,15 @@ k.setR(0.1)
 in the main_file.py, the change in the KalmanFilter estimation can be seen. 
 
 
+![W Values ](/Results/w.png)
+
+![X Values ](/Results/x.png)
+
+![Y Values ](/Results/y.png)
+
+![Z Values ](/Results/z.png)
+
+![Video Demonstration](https://youtu.be/qK9Tyd0Xv1k)
 
 ___
 ## Issues and further work
@@ -123,5 +132,6 @@ In order to find the eigen values and eigen vector matrices, the recursive Jacob
 Unfortunately this doesn't work as well as expected. Besides, the Magnetometer readings from Android come precalibrated. Hence it's skipped.
 
 x<sub>calibrated</sub> = A<sup>1/2</sup> ( x - x')
+
 
 [Magnetometer Calibration Paper](https://www.nxp.com/docs/en/application-note/AN4246.pdf) and [magcal operation in Matlab](https://de.mathworks.com/help/fusion/ref/magcal.html)
