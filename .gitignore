@@ -11,5 +11,7 @@
 !*.shader
 !*.eps
 !*.png
-!*.xml
+!AndroidManifest.xml
+!activity_main.xml
+!activity_sensor_activities.xml
 !*.java
