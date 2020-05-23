@@ -11,6 +11,10 @@
 !*.shader
 !*.eps
 !*.png
-!*.java
 !activity_main.xml
 !activity_sensor_activities.xml
+!ClientThread.java
+!MainActivity.java
+!Messages.java
+!MessageSender.java
+!SensorActivities.java
