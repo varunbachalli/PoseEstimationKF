@@ -11,6 +11,3 @@
 !*.shader
 !*.eps
 !*.png
-!activity_main.xml
-!activity_sensor_activities.xml
-!*.java
